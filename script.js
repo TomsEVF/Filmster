@@ -71,13 +71,15 @@ function initScanner() {
 
 function startScannerWithSelectedCamera(cameraId) {
   scanner = new Html5Qrcode("QR-Code");
-  const qrCodeConfig = {
+  const qrCodeConfig =(
+    { facingMode: { exact: "environment" } },
+    {
       fps: 10,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
           const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
           return { width: size, height: size };
       }
-  };
+  });
   
   let cameraConfig;
   if (cameraId) {
