@@ -13,6 +13,7 @@ fetch("Filmster-Filme-V3.csv")
     console.log("CSV geladen:", filmcsv);
 
     // Scanner erst jetzt starten
+    document.getElementById("QR-Code").style.display = "";
     startScanner();
   });
 
