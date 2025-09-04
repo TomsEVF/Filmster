@@ -3,12 +3,13 @@ let filmcsv = [];
 let film = [];
 let video = [];
 let trailerIndex = 1;
+let scanner;
 
 // CSV laden
 fetch("Filmster-Filme-V3.csv")
   .then(response => response.text())
   .then(text => {
-    filmcsv = parseCSV(text); // CSV parsen
+    filmcsv = parseCSV(text);
     console.log("CSV geladen:", filmcsv);
 
     // Scanner erst jetzt starten
@@ -17,20 +18,59 @@ fetch("Filmster-Filme-V3.csv")
 
 // Scanner starten
 function startScanner() {
-  document.getElementById("QR-Code").style.display = "block";
-  scanner = new Html5QrcodeScanner(
-    "QR-Code",
-    { fps: 10, qrbox: 250 },
-    false
-  );
-  scanner.render(onScanSuccess, onScanFailure);
+  const qrDiv = document.getElementById("QR-Code");
+  qrDiv.style.display = "block";   // wichtig!
+  qrDiv.innerHTML = "";            // alte Inhalte leeren
+  if (scanner) {
+    scanner.stop().then(() => {
+      scanner.clear();
+      scanner = null;
+      initScanner();
+    }).catch(err => {
+      console.error("Error stopping scanner:", err);
+      initScanner();
+    });
+  } else {
+    initScanner();
+  }
+}
+
+function initScanner() {
+  scanner = new Html5Qrcode("QR-Code");
+
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      // Diese einfache Funktion reicht jetzt aus, da CSS die Form erzwingt.
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+        return {
+          width: size,
+          height: size,
+        };
+      }
+    },
+    onScanSuccess,
+    onScanFailure
+  ).catch(err => {
+    console.error("Scanner konnte nicht gestartet werden:", err);
+    const qrDiv = document.getElementById("QR-Code");
+    if (qrDiv) {
+      qrDiv.innerHTML = "Die Kamera konnte nicht gestartet werden. <br> Bitte erteile die notwendigen Berechtigungen und lade die Seite neu.";
+    }
+  });
 }
 
 function onScanSuccess(decodedText, decodedResult) {
     // ID mit RegEx auslesen
   let match = decodedText.match(/id=(\d+)/);
   let filmId = (match ? match[1] : null);
-  scanner.clear();
+  scanner.stop().then(() => {
+    scanner.clear();
+  }).catch(err => {
+    console.error("Error stopping scanner after success:", err);
+  });
   console.log(filmId);
   if (filmId) {
     //Film suchen
@@ -93,6 +133,7 @@ document.getElementById("scanAgainButton").addEventListener("click", function() 
   trailerIndex = 1;
 
   // Scanner neu starten: Scanner-Objekt neu erstellen und rendern
+  initScanner();
   startScanner();
 });
 

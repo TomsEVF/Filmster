@@ -27,12 +27,19 @@
 }
 
 #QR-Code {
-  width: 25rem;        /* Breite des Kamerafensters */
-  height: 25rem;       /* Höhe des Kamerafensters */
-  border-radius: 0.625rem;       /* abgerundete Ecken */
-  box-shadow: 0 0 0.9375rem #919da865 (101, 104, 123, 0.3);
-  overflow: hidden;          /* Bild passt ins Feld */
-  position: relative;
+  width: 25rem;        /* Wir definieren nur die Breite */
+  aspect-ratio: 1 / 1; /* ERZWINGT ein quadratisches Seitenverhältnis (Höhe = Breite) */
+  margin: 1.25rem auto;
+  border-radius: 0.625rem;
+  box-shadow: 0 0 0.9375rem #919da865;
+  overflow: hidden;
+  position: relative; /* Wichtig für das Video-Element darin */
+}
+
+#QR-Code video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Verhindert Verzerrung, schneidet Überflüssiges ab */
 }
 
 #videoContainer {
