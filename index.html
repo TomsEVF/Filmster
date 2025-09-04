@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filmster</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1 id="Titel">Filmster</h1>
+    </header>
+    <div id="text">Scanne den QR-code auf deiner Karte</div>
+    <div id="QR-Code"></div>
+    <div id="videoContainer" style="display:none;">
+        <video id="trailer" controls width="640" height="360"></video>
+        <div id="videoButtons">
+            <button id="continueButton">Weiter Trailer schauen</button>
+            <button id="scanAgainButton">Neuen QR-Code scannen</button>
+        </div>
+    </div>
+</body>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-md5@0.7.3/build/md5.min.js"></script>
+<script src="script.js"></script>
+</html>
