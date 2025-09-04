@@ -36,21 +36,58 @@ function startScanner() {
 }
 
 function initScanner() {
+  const cameraSelector = document.getElementById("camera-selector");
+  const cameraSelectorContainer = document.getElementById("camera-selector-container");
+
+  Html5Qrcode.getCameras().then(cameras => {
+    if (cameras && cameras.length) {
+      cameraSelectorContainer.style.display = "block"; // Dropdown anzeigen
+      cameraSelector.innerHTML = ''; // Vorherige Optionen leeren
+      cameras.forEach(camera => {
+        const option = document.createElement("option");
+        option.value = camera.id;
+        option.text = camera.label || `Camera ${camera.id}`;
+        cameraSelector.appendChild(option);
+      });
+
+      // Rückkamera (environment) standardmäßig auswählen, wenn vorhanden
+      const environmentCamera = cameras.find(camera => camera.label.toLowerCase().includes("back") || camera.label.toLowerCase().includes("environment"));
+      if (environmentCamera) {
+          cameraSelector.value = environmentCamera.id;
+      }
+    } else {
+        cameraSelectorContainer.style.display = "none";
+    }
+    
+    // Starte den Scanner mit der ausgewählten Kamera
+    startScannerWithSelectedCamera(cameraSelector.value);
+
+  }).catch(err => {
+    console.error("Kameras konnten nicht gelistet werden:", err);
+    startScannerWithSelectedCamera(null); // Versuche, ohne spezifische Kamera zu starten
+  });
+}
+
+function startScannerWithSelectedCamera(cameraId) {
   scanner = new Html5Qrcode("QR-Code");
+  const qrCodeConfig = {
+      fps: 10,
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+          return { width: size, height: size };
+      }
+  };
+  
+  let cameraConfig;
+  if (cameraId) {
+      cameraConfig = { deviceId: { exact: cameraId } };
+  } else {
+      cameraConfig = { facingMode: "environment" };
+  }
 
   scanner.start(
-    { facingMode: "environment" },
-    {
-      fps: 10,
-      // Diese einfache Funktion reicht jetzt aus, da CSS die Form erzwingt.
-      qrbox: (viewfinderWidth, viewfinderHeight) => {
-        const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
-        return {
-          width: size,
-          height: size,
-        };
-      }
-    },
+    cameraConfig,
+    qrCodeConfig,
     onScanSuccess,
     onScanFailure
   ).catch(err => {
@@ -59,6 +96,17 @@ function initScanner() {
     if (qrDiv) {
       qrDiv.innerHTML = "Die Kamera konnte nicht gestartet werden. <br> Bitte erteile die notwendigen Berechtigungen und lade die Seite neu.";
     }
+  });
+
+  // Hinzufügen eines Event-Listeners, um bei Änderung der Auswahl den Scanner neu zu starten
+  document.getElementById("camera-selector").addEventListener("change", (e) => {
+    scanner.stop().then(() => {
+      scanner.clear();
+      startScannerWithSelectedCamera(e.target.value);
+    }).catch(err => {
+      console.error("Error stopping scanner for camera switch:", err);
+      startScannerWithSelectedCamera(e.target.value);
+    });
   });
 }
 
@@ -78,6 +126,7 @@ function onScanSuccess(decodedText, decodedResult) {
     console.log(film);
     if (film) {
       document.getElementById("QR-Code").style.display = "none";
+      document.getElementById("camera-selector-container").style.display = "none";
       let textElem = document.getElementById("text");
       if (textElem) {
         textElem.innerText = "Schau genau Hin!";
@@ -127,6 +176,7 @@ document.getElementById("scanAgainButton").addEventListener("click", function() 
   if (textElem) {
     textElem.innerText = "Scanne den QR-code auf deiner Karte";
   }
+  document.getElementById("QR-Code").style.display = "";
   let videoContainer = document.getElementById("videoContainer");
   if (videoContainer) videoContainer.style.display = "none";
   // Zähler zurücksetzen

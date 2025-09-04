@@ -19,6 +19,10 @@
   margin: 0.625rem 1.25rem 0.3125rem 1.25rem;
 }
 
+#camera-selector-container{
+  color: #c7d0d9;
+}
+
 #scannerWrapper {
   position: relative;
   width: 25rem;
