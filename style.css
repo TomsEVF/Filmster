@@ -31,7 +31,7 @@
 }
 
 #QR-Code {
-  width: 25rem;        /* Wir definieren nur die Breite */
+  width: 23rem;        /* Wir definieren nur die Breite */
   aspect-ratio: 1 / 1; /* ERZWINGT ein quadratisches Seitenverhältnis (Höhe = Breite) */
   margin: 1.25rem auto;
   border-radius: 0.625rem;
