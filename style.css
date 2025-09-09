@@ -71,6 +71,12 @@
             border: 1px solid var(--glass-border);
         }
 
+        #QR-Code video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Verhindert Verzerrung, schneidet ÃœberflÃ¼ssiges ab */
+        }
+
         #videoContainer {
             background: var(--glass-bg);
             backdrop-filter: blur(20px);

@@ -1,4 +1,4 @@
-let filmid = "";
+    let filmid = "";
     let filmcsv = [];
     let film = null;
     let trailerIndex = 1;
@@ -113,7 +113,9 @@ let filmid = "";
 
             if (film) {
                 console.log("Film gefunden:", film);
-                scanner.stop();
+                if (scanner) {
+                    scanner.stop().catch(err => console.error("Fehler beim Stoppen des Scanners:", err));
+                }
                 document.getElementById("QR-Code").style.display = "none";
                 document.getElementById("text").textContent = film['Titel Deutsch'];
                 document.getElementById("videoContainer").style.display = "flex";
