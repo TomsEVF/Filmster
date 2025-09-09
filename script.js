@@ -6,7 +6,7 @@
     let continueButtonDebounce = false;
     let currentLanguage = 'de';
 
-    // CSV-Datei laden (V4)
+    // Load CSV file
     fetch("Filmster-Filme-V4.csv")
         .then(response => {
             if (!response.ok) {
@@ -16,25 +16,28 @@
         })
         .then(text => {
             filmcsv = parseCSV(text);
-            console.log("CSV geladen:", filmcsv);
-            // Scanner erst jetzt starten
-            document.getElementById("QR-Code").style.display = "block";
+            console.log("CSV loaded:", filmcsv);
             startScanner();
         })
-        .catch(error => console.error("Fehler beim Laden der CSV-Datei:", error));
+        .catch(error => {
+            document.getElementById("ergebnis").textContent = "Fehler beim Laden der Film-Daten.";
+            console.error("Error loading CSV file:", error);
+        });
 
-    // Scanner starten
+    // Start or restart scanner
     function startScanner() {
         const qrDiv = document.getElementById("QR-Code");
         qrDiv.style.display = "block";
         qrDiv.innerHTML = "";
+        
         if (scanner) {
             scanner.stop().then(() => {
                 scanner.clear();
                 scanner = null;
-                initScanner();
+                // Add a small delay to allow the camera to become available again
+                setTimeout(initScanner, 500); 
             }).catch(err => {
-                console.error("Fehler beim Stoppen des Scanners:", err);
+                console.error("Error stopping scanner:", err);
                 initScanner();
             });
         } else {
@@ -42,10 +45,11 @@
         }
     }
 
+    // Initialize camera and start scanner
     function initScanner() {
         const cameraSelector = document.getElementById("camera-selector");
         const cameraSelectorContainer = document.getElementById("camera-selector-container");
-
+        
         Html5Qrcode.getCameras().then(cameras => {
             if (cameras && cameras.length) {
                 cameraSelectorContainer.style.display = "block";
@@ -59,10 +63,11 @@
                 cameraSelector.addEventListener('change', startQrCodeScanner);
                 startQrCodeScanner();
             } else {
-                console.error("Keine Kamera gefunden.");
+                document.getElementById("ergebnis").textContent = "Keine Kamera gefunden. Bitte stelle sicher, dass deine Kamera angeschlossen und freigegeben ist.";
             }
         }).catch(err => {
-            console.error("Fehler beim Abrufen der Kameras:", err);
+            document.getElementById("ergebnis").textContent = "Kamerazugriff verweigert. Bitte erlaube den Kamerazugriff in den Browsereinstellungen.";
+            console.error("Error getting cameras:", err);
         });
     }
 
@@ -70,14 +75,17 @@
         const qrDiv = document.getElementById("QR-Code");
         const cameraSelector = document.getElementById("camera-selector");
         const cameraId = cameraSelector.value;
-        if (!cameraId) return;
+        if (!cameraId) {
+            console.error("No camera selected.");
+            return;
+        }
 
         if (scanner) {
             scanner.stop().then(() => {
                 scanner.clear();
                 startNewScanner(cameraId, qrDiv);
             }).catch(err => {
-                console.error("Fehler beim Stoppen des Scanners:", err);
+                console.error("Error stopping scanner:", err);
                 startNewScanner(cameraId, qrDiv);
             });
         } else {
@@ -100,7 +108,8 @@
             },
             (errorMessage) => {}
         ).catch(err => {
-            console.error("Fehler beim Starten des Scanners:", err);
+            document.getElementById("ergebnis").textContent = "Fehler beim Starten der Kamera. Bitte erlaube den Kamerazugriff.";
+            console.error("Error starting scanner:", err);
         });
     }
 
@@ -112,26 +121,26 @@
             film = filmcsv.find(f => f.Nr === filmid);
 
             if (film) {
-                console.log("Film gefunden:", film);
+                console.log("Film found:", film);
                 if (scanner) {
-                    scanner.stop().catch(err => console.error("Fehler beim Stoppen des Scanners:", err));
+                    scanner.stop().catch(err => console.error("Error stopping scanner:", err));
                 }
                 document.getElementById("QR-Code").style.display = "none";
-                document.getElementById("text").textContent = film['Titel Deutsch'];
+                // Show the video container immediately, without changing the text
                 document.getElementById("videoContainer").style.display = "flex";
                 trailerIndex = 1;
                 showTrailer(film);
             } else {
                 document.getElementById("ergebnis").textContent = "Film nicht gefunden!";
-                console.log("Film nicht gefunden für ID:", filmid);
+                console.log("Film not found for ID:", filmid);
             }
         } else {
             document.getElementById("ergebnis").textContent = "Ungültiger QR-Code!";
-            console.log("Ungültiger QR-Code:", decodedText);
+            console.log("Invalid QR code:", decodedText);
         }
     }
 
-    // Event-Listener für Buttons
+    // Event listeners for buttons
     const continueButton = document.getElementById("continueButton");
     const scanAgainButton = document.getElementById("scanAgainButton");
     const videoElement = document.getElementById("trailer");
@@ -153,13 +162,12 @@
         startScanner();
     });
 
-    // Sprachauswahl-Buttons
+    // Language selection buttons
     document.querySelectorAll('.lang-button').forEach(button => {
         button.addEventListener('click', () => {
             document.querySelectorAll('.lang-button').forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             currentLanguage = button.dataset.lang;
-            // Starte den Trailer neu in der neuen Sprache
             trailerIndex = 1;
             showTrailer(film);
         });
@@ -173,7 +181,6 @@
 
     function showTrailer(film) {
         let trailerUrl = film[`App-Link_Video-${trailerIndex}_${currentLanguage.toUpperCase()}`];
-        console.log(`Versuche, Trailer ${trailerIndex} in ${currentLanguage} zu laden: ${trailerUrl}`);
         if (trailerUrl && trailerUrl.trim() !== "") {
             videoElement.src = trailerUrl;
             videoElement.style.display = "block";
@@ -182,8 +189,7 @@
             trailerIndex++;
             updateButtons();
         } else {
-            console.log("Kein weiterer Trailer verfügbar, kehre zum ersten zurück.");
-            trailerIndex = 1; // Kehre zum ersten Trailer zurück
+            trailerIndex = 1;
             showTrailer(film);
         }
     }
