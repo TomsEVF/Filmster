@@ -24,31 +24,47 @@
             console.error("Error loading CSV file:", error);
         });
 
+    // Helper to safely stop and clear the scanner
+    function safeStopScanner() {
+        return new Promise((resolve) => {
+            if (scanner) {
+                scanner.stop().then(() => {
+                    scanner.clear();
+                    scanner = null;
+                    resolve();
+                }).catch(err => {
+                    console.error("Error stopping scanner:", err);
+                    // Still clear and null scanner
+                    try { scanner.clear(); } catch (e) {}
+                    scanner = null;
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
     // Start or restart scanner
     function startScanner() {
         const qrDiv = document.getElementById("QR-Code");
         qrDiv.style.display = "block";
         qrDiv.innerHTML = "";
-        
-        if (scanner) {
-            scanner.stop().then(() => {
-                scanner.clear();
-                scanner = null;
-                // Add a small delay to allow the camera to become available again
-                setTimeout(initScanner, 500); 
-            }).catch(err => {
-                console.error("Error stopping scanner:", err);
-                initScanner();
-            });
-        } else {
-            initScanner();
-        }
+
+        safeStopScanner().then(() => {
+            // kleine Pause, damit Browser Kamera freigibt
+            setTimeout(initScanner, 500);
+        });
     }
 
     // Initialize camera and start scanner
     function initScanner() {
         const cameraSelector = document.getElementById("camera-selector");
         const cameraSelectorContainer = document.getElementById("camera-selector-container");
+        if (!cameraSelector.dataset.listenerAdded) {
+            cameraSelector.addEventListener('change', startQrCodeScanner);
+            cameraSelector.dataset.listenerAdded = "true";
+        }
         
         Html5Qrcode.getCameras().then(cameras => {
             if (cameras && cameras.length) {
@@ -60,7 +76,6 @@
                     option.text = camera.label || `Kamera ${cameras.indexOf(camera) + 1}`;
                     cameraSelector.appendChild(option);
                 });
-                cameraSelector.addEventListener('change', startQrCodeScanner);
                 startQrCodeScanner();
             } else {
                 document.getElementById("ergebnis").textContent = "Keine Kamera gefunden. Bitte stelle sicher, dass deine Kamera angeschlossen und freigegeben ist.";
@@ -80,17 +95,9 @@
             return;
         }
 
-        if (scanner) {
-            scanner.stop().then(() => {
-                scanner.clear();
-                startNewScanner(cameraId, qrDiv);
-            }).catch(err => {
-                console.error("Error stopping scanner:", err);
-                startNewScanner(cameraId, qrDiv);
-            });
-        } else {
+        safeStopScanner().then(() => {
             startNewScanner(cameraId, qrDiv);
-        }
+        });
     }
 
     function startNewScanner(cameraId, qrDiv) {
@@ -122,14 +129,12 @@
 
             if (film) {
                 console.log("Film found:", film);
-                if (scanner) {
-                    scanner.stop().catch(err => console.error("Error stopping scanner:", err));
-                }
-                document.getElementById("QR-Code").style.display = "none";
-                // Show the video container immediately, without changing the text
-                document.getElementById("videoContainer").style.display = "flex";
-                trailerIndex = 1;
-                showTrailer(film);
+                safeStopScanner().then(() => {
+                    document.getElementById("QR-Code").style.display = "none";
+                    document.getElementById("videoContainer").style.display = "flex";
+                    trailerIndex = 1;
+                    showTrailer(film);
+                });
             } else {
                 document.getElementById("ergebnis").textContent = "Film nicht gefunden!";
                 console.log("Film not found for ID:", filmid);
