@@ -4,22 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Filmster</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <h1 id="Titel">Filmster</h1>
     </header>
-    <div id="text">Scanne den QR-code auf deiner Karte</div>
+
+    <div id="ergebnis"></div>
+
+    <div id="text">Scanne den QR-Code auf deiner Karte</div>
+
     <div id="camera-selector-container" style="display:none;">
         <label for="camera-selector">Kamera auswählen:</label>
         <select id="camera-selector"></select>
     </div>
+
     <div id="QR-Code"></div>
-    <div id="videoContainer" style="display:none;">
-        <video id="trailer" controls width="640" height="360"></video>
+
+    <div class="container" id="videoContainer" style="display:none;">
+        <div class="lang-button-container">
+            <button id="lang-de" class="lang-button active" data-lang="de">Deutsch</button>
+            <button id="lang-en" class="lang-button" data-lang="en">English</button>
+        </div>
+        <video id="trailer" controls autoplay width="640" height="360"></video>
         <div id="videoButtons">
-            <button id="continueButton">Weiter Trailer schauen</button>
+            <button id="continueButton" style="display:none;">Nächster Trailer</button>
             <button id="scanAgainButton">Neuen QR-Code scannen</button>
         </div>
     </div>

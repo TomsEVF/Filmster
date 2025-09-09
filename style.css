@@ -1,115 +1,146 @@
-@font-face {
-  font-family: 'SF-Pro';                 /* Name, den du in CSS verwendest */
-  src: url('SF-Pro.ttf') format('truetype');  /* Pfad zur Datei */
-  font-weight: normal;
-  font-style: normal;
-}
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --button-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+            --button-shadow: rgba(0, 0, 0, 0.2);
+            --text-color: #e0e0e0;
+            --accent-color: #58a6ff;
+        }
 
-#Titel {
-    font-size: 5rem;
-    font-family: SF-Pro;
-    color: #c7d0d9;
-}
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle, #2c3e50 0%, #1a232f 100%);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
 
-#text {
-  font-size: 2rem;
-  color: #c7d0d9;
-  text-align: center;
-  font-family: SF-Pro;
-  margin: 0.625rem 1.25rem 0.3125rem 1.25rem;
-}
+        .container {
+            max-width: 90%;
+            width: 100%;
+            margin-top: 20px;
+        }
 
-#camera-selector-container{
-  color: #c7d0d9;
-}
+        header h1 {
+            font-size: clamp(2rem, 8vw, 5rem);
+            color: var(--text-color);
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
 
-#scannerWrapper {
-  position: relative;
-  width: 25rem;
-  height: 25rem;
-  margin: 1.25rem auto;
-}
+        #text {
+            font-size: clamp(1rem, 4vw, 2rem);
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
 
-#QR-Code {
-  width: 23rem;        /* Wir definieren nur die Breite */
-  aspect-ratio: 1 / 1; /* ERZWINGT ein quadratisches Seitenverhältnis (Höhe = Breite) */
-  margin: 1.25rem auto;
-  border-radius: 0.625rem;
-  box-shadow: 0 0 0.9375rem #919da865;
-  overflow: hidden;
-  position: relative; /* Wichtig für das Video-Element darin */
-}
+        #camera-selector-container {
+            margin-bottom: 20px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
 
-#QR-Code video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Verhindert Verzerrung, schneidet Überflüssiges ab */
-}
+        #camera-selector {
+            padding: 8px;
+            border-radius: 10px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            cursor: pointer;
+        }
 
-#videoContainer {
-  background-color: #3a5068;
-  padding: 0.9375rem;
-  border-radius: 0.625rem;
-  box-shadow: 0 0 0.9375rem rgba(0, 0, 0, 0.4);
-  width: 95%;
-  margin: 0 auto;
-  margin-top: 3.125rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+        #QR-Code {
+            width: clamp(200px, 80vw, 400px);
+            aspect-ratio: 1 / 1;
+            margin: 20px auto;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(145, 157, 168, 0.4);
+            overflow: hidden;
+            position: relative;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+        }
 
-#trailer {
-  margin: 0.3125rem auto 0.625rem auto;
-  display: block; /* zentriert, wenn margin: auto */
-  width: 100%;
-  height: 57%;
-  z-index: 10;
-}
+        #videoContainer {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            width: 95%;
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-#videoButtons {
-  display: flex;
-  justify-content: center; /* horizontal zentrieren */
-  gap: 0.625rem;               /* Abstand zwischen den Buttons */
-  margin-top: 0.625rem;
-}
+        #trailer {
+            border-radius: 15px;
+            margin-bottom: 15px;
+            width: 100%;
+            max-height: 450px;
+            aspect-ratio: 16 / 9;
+        }
 
-#continueButton{
-    font-family: SF-Pro;
-  padding: 0.625rem 1.25rem;
-  font-size: 1rem;
-  background-color: #ff6600;
-  color: white;
-  border: none;
-  border-radius: 0.3125rem;
-  cursor: pointer;
-  margin: 0.625rem;
-}
+        #videoButtons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
 
-#continueButton:hover{
-  background-color: #ff8533;
-}
+        .lang-button-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
 
-#scanAgainButton {
-    font-family: SF-Pro;
-    padding: 0.625rem 1.25rem;
-    font-size: 1rem;
-    background-color: #ff6600;
-    color: white;
-    border: none;
-    border-radius: 0.3125rem;
-    cursor: pointer;
-    margin: 0.625rem;
-}
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            color: var(--text-color);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            background: var(--button-bg);
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--button-shadow);
+        }
 
-#scanAgainButton:hover {
-  background-color: #ff8533;
-}
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+        }
 
-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: #2f475e;
-  font-family: Arial, sans-serif;
-}
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        button.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        @media (max-width: 600px) {
+            #videoButtons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
