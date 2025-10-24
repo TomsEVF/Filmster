@@ -1,39 +1,10 @@
-let filmid = "";
+    let filmid = "";
     let filmcsv = [];
     let film = null;
     let trailerIndex = 1;
     let scanner;
     let continueButtonDebounce = false;
     let currentLanguage = 'de';
-
-    // Elemente abrufen
-    const ergebnisDiv = document.getElementById("ergebnis");
-    const textDiv = document.getElementById("text");
-    const qrCodeDiv = document.getElementById("QR-Code");
-    const videoContainer = document.getElementById("videoContainer");
-    const videoElement = document.getElementById("trailer");
-    const continueButton = document.getElementById("continueButton");
-    const scanAgainButton = document.getElementById("scanAgainButton");
-    const cameraSelectorContainer = document.getElementById("camera-selector-container");
-    const cameraSelector = document.getElementById("camera-selector");
-    
-    // Konfiguration für den QrScanner (Bibliothek muss extern geladen werden)
-    const qrScannerOptions = {
-        // Hier wird die Rückkamera (environment) als Standard bevorzugt.
-        // Bei Misserfolg wird auf die Frontkamera (user) zurückgegriffen.
-        preferredCamera: "environment", 
-        maxScansPerSecond: 1, // Reduziert die CPU-Last
-        highlightScanRegion: true,
-        highlightCodeOutline: true,
-        calculateScanRegion: (video) => {
-            // Zentrierte, quadratische Scan-Region
-            const size = Math.min(video.videoWidth, video.videoHeight) * 0.8; // 80% der kleineren Dimension
-            const x = (video.videoWidth - size) / 2;
-            const y = (video.videoHeight - size) / 2;
-            return { x, y, width: size, height: size };
-        }
-    };
-
 
     // Load CSV file
     fetch("Filmster-Filme-V4.csv")
@@ -75,132 +46,128 @@ let filmid = "";
     }
 
     // Start or restart scanner
-    async function startScanner() {
-        // Sicherstellen, dass der alte Scanner gestoppt und bereinigt ist
-        await safeStopScanner();
+    function startScanner() {
+        const qrDiv = document.getElementById("QR-Code");
+        qrDiv.style.display = "block";
+        qrDiv.innerHTML = "";
 
-        // UI-Anpassungen für den Scan-Modus
-        ergebnisDiv.textContent = "";
-        textDiv.style.display = "block";
-        videoContainer.style.display = "none";
-        qrCodeDiv.style.display = "block";
-
-        // Füge das Video-Element für den Scanner in den QR-Code-Div ein
-        const video = document.createElement('video');
-        video.id = 'qr-video';
-        qrCodeDiv.appendChild(video);
-
-        try {
-            // Initialisiert den QrScanner mit der konfigurierten Option für die Rückkamera
-            scanner = new QrScanner(
-                video,
-                result => handleScanResult(result),
-                qrScannerOptions
-            );
-
-            // Startet den Scanner
-            await scanner.start();
-            console.log("Scanner started, camera preferred:", qrScannerOptions.preferredCamera);
-
-            // Liste der Kameras abrufen und Auswahl-Dropdown füllen
-            updateCameraSelector(scanner);
-        } catch (err) {
-            ergebnisDiv.textContent = "Kamerazugriff nicht möglich oder keine Kamera gefunden.";
-            textDiv.style.display = "none";
-            qrCodeDiv.style.display = "none";
-            console.error("Fehler beim Starten des Scanners:", err);
-        }
-    }
-
-    function updateCameraSelector(scannerInstance) {
-        QrScanner.listCameras(true).then(cameras => {
-            cameraSelector.innerHTML = ''; // Vorherige Optionen löschen
-            let hasMultipleCameras = cameras.length > 1;
-            
-            if (hasMultipleCameras) {
-                cameraSelectorContainer.style.display = 'block';
-                cameras.forEach(camera => {
-                    const option = document.createElement('option');
-                    option.value = camera.id;
-                    option.text = camera.label || `Kamera ${camera.id}`;
-                    // Setze die standardmäßig bevorzugte Kamera als ausgewählt, wenn sie in der Liste ist
-                    if (camera.facingMode === qrScannerOptions.preferredCamera) {
-                        option.selected = true;
-                    }
-                    cameraSelector.appendChild(option);
-                });
-
-                // Event-Listener für Kamerawechsel
-                cameraSelector.onchange = () => {
-                    scannerInstance.setCamera(cameraSelector.value);
-                };
-            } else {
-                cameraSelectorContainer.style.display = 'none';
-            }
+        safeStopScanner().then(() => {
+            // kleine Pause, damit Browser Kamera freigibt
+            setTimeout(initScanner, 500);
         });
     }
-    
-    // Debounce-Funktion
-    function debounce(func, timeout = 300) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => { func.apply(this, args); }, timeout);
-        };
+
+    // Initialize camera and start scanner
+    function initScanner() {
+        const cameraSelector = document.getElementById("camera-selector");
+        const cameraSelectorContainer = document.getElementById("camera-selector-container");
+        if (!cameraSelector.dataset.listenerAdded) {
+            cameraSelector.addEventListener('change', startQrCodeScanner);
+            cameraSelector.dataset.listenerAdded = "true";
+        }
+        
+        Html5Qrcode.getCameras().then(cameras => {
+            if (cameras && cameras.length) {
+                cameraSelectorContainer.style.display = "block";
+                cameraSelector.innerHTML = '';
+                cameras.forEach(camera => {
+                    const option = document.createElement("option");
+                    option.value = camera.id;
+                    option.text = camera.label || `Kamera ${cameras.indexOf(camera) + 1}`;
+                    cameraSelector.appendChild(option);
+                });
+                startQrCodeScanner();
+            } else {
+                document.getElementById("ergebnis").textContent = "Keine Kamera gefunden. Bitte stelle sicher, dass deine Kamera angeschlossen und freigegeben ist.";
+            }
+        }).catch(err => {
+            document.getElementById("ergebnis").textContent = "Kamerazugriff verweigert. Bitte erlaube den Kamerazugriff in den Browsereinstellungen.";
+            console.error("Error getting cameras:", err);
+        });
     }
 
-    // Funktion zur Verarbeitung des Scan-Ergebnisses
-    const handleScanResult = debounce(async (result) => {
-        // Führe nur fort, wenn kein Debounce aktiv ist
-        if (continueButtonDebounce) return; 
+    function startQrCodeScanner() {
+        const qrDiv = document.getElementById("QR-Code");
+        const cameraSelector = document.getElementById("camera-selector");
+        const cameraId = cameraSelector.value;
+        if (!cameraId) {
+            console.error("No camera selected.");
+            return;
+        }
 
-        await safeStopScanner(); // Scanner stoppen
-        qrCodeDiv.style.display = "none";
-        textDiv.style.display = "none";
+        safeStopScanner().then(() => {
+            startNewScanner(cameraId, qrDiv);
+        });
+    }
 
-        const decodedText = result.data;
-        console.log("QR Code Decoded:", decodedText);
+    function startNewScanner(cameraId, qrDiv) {
+        scanner = new Html5Qrcode("QR-Code");
+        scanner.start(
+            cameraId, {
+                fps: 20,
+                qrbox: {
+                    width: 250,
+                    height: 250
+                }
+            },
+            (decodedText, decodedResult) => {
+                handleScanSuccess(decodedText);
+            },
+            (errorMessage) => {}
+        ).catch(err => {
+            document.getElementById("ergebnis").textContent = "Fehler beim Starten der Kamera. Bitte erlaube den Kamerazugriff.";
+            console.error("Error starting scanner:", err);
+        });
+    }
 
-        const urlParams = new URLSearchParams(decodedText.split('?')[1]);
-        filmid = urlParams.get('id');
-
-        if (filmid) {
+    function handleScanSuccess(decodedText) {
+        const idRegex = /filmster:\/\/result\?id=(\d{3})/;
+        const match = decodedText.match(idRegex);
+        if (match) {
+            filmid = match[1];
             film = filmcsv.find(f => f.Nr === filmid);
 
             if (film) {
-                ergebnisDiv.textContent = `Film ${filmid} gefunden: ${film['Titel Deutsch']}`;
-                trailerIndex = 1;
-                videoContainer.style.display = "flex";
-                showTrailer(film);
+                console.log("Film found:", film);
+                safeStopScanner().then(() => {
+                    document.getElementById("QR-Code").style.display = "none";
+                    document.getElementById("videoContainer").style.display = "flex";
+                    trailerIndex = 1;
+                    showTrailer(film);
+                });
             } else {
-                ergebnisDiv.textContent = `Fehler: Film-ID ${filmid} nicht in der Datenbank gefunden.`;
-                startScanner(); // Neustart nach Fehler
+                document.getElementById("ergebnis").textContent = "Film nicht gefunden!";
+                console.log("Film not found for ID:", filmid);
             }
         } else {
-            ergebnisDiv.textContent = `Fehler: Ungültiger QR-Code-Inhalt.`;
-            startScanner(); // Neustart nach Fehler
+            document.getElementById("ergebnis").textContent = "Ungültiger QR-Code!";
+            console.log("Invalid QR code:", decodedText);
         }
-    }, 1000);
+    }
 
+    // Event listeners for buttons
+    const continueButton = document.getElementById("continueButton");
+    const scanAgainButton = document.getElementById("scanAgainButton");
+    const videoElement = document.getElementById("trailer");
 
-    // Event Listener für Buttons
-    continueButton.addEventListener('click', () => {
-        if (!continueButtonDebounce) {
-            continueButtonDebounce = true;
-            setTimeout(() => { continueButtonDebounce = false; }, 500); // Debounce für 500ms
-            
-            if (film) {
-                showTrailer(film);
-            }
-        }
+    continueButton.addEventListener("click", () => {
+        if (continueButtonDebounce) return;
+        continueButtonDebounce = true;
+        setTimeout(() => {
+            showTrailer(film);
+            continueButtonDebounce = false;
+        }, 500);
     });
-    
-    scanAgainButton.addEventListener('click', () => {
-        videoContainer.style.display = "none";
+
+    scanAgainButton.addEventListener("click", () => {
+        videoElement.pause();
+        document.getElementById("videoContainer").style.display = "none";
+        document.getElementById("text").textContent = "Scanne den QR-Code auf deiner Karte";
+        document.getElementById("ergebnis").textContent = "";
         startScanner();
     });
 
-    // Language Buttons setup
+    // Language selection buttons
     document.querySelectorAll('.lang-button').forEach(button => {
         button.addEventListener('click', () => {
             document.querySelectorAll('.lang-button').forEach(btn => btn.classList.remove('active'));
