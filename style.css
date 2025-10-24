@@ -29,83 +29,100 @@
         }
 
         header h1 {
-            font-size: clamp(2rem, 8vw, 3rem);
+            font-size: clamp(2rem, 8vw, 5rem);
+            color: var(--text-color);
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             margin-bottom: 20px;
-            font-weight: 700;
+            letter-spacing: 2px;
         }
 
         #text {
-            font-size: 1.1rem;
-            margin-bottom: 20px;
+            font-size: clamp(1rem, 4vw, 2rem);
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
-        #ergebnis {
-            margin: 10px 0;
-            font-size: 1.2rem;
-            color: var(--accent-color);
-            min-height: 1.2rem; /* Platzhalter, um CLS zu verhindern */
+        #camera-selector-container {
+            margin-bottom: 20px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        #camera-selector {
+            padding: 8px;
+            border-radius: 10px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            cursor: pointer;
         }
 
         #QR-Code {
-            width: 100%;
-            max-width: 500px; /* Begrenzung der maximalen Breite */
-            aspect-ratio: 1 / 1; /* Quadratisches Seitenverhältnis für das Scanner-Feld */
-            position: relative;
+            width: clamp(200px, 80vw, 400px);
+            max-width: 90%;
+            aspect-ratio: 1 / 1;
+            margin: 20px auto;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(145, 157, 168, 0.4);
             overflow: hidden;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            background-color: rgba(0, 0, 0, 0.5);
-            margin-bottom: 20px;
+            position: relative;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
         }
 
         #QR-Code video {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Video füllt den Container aus, schneidet ggf. ab */
+            object-fit: cover;
         }
-
+        
         #videoContainer {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            width: 95%;
+            max-width: 800px;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            border-radius: 12px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 4px 20px var(--button-shadow);
         }
 
         #trailer {
+            border-radius: 15px;
+            margin-bottom: 15px;
             width: 100%;
-            max-width: 640px; /* Max. Breite für das Video */
-            height: auto;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            max-height: 450px;
+            aspect-ratio: 16 / 9;
         }
 
         #videoButtons {
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
+            flex-wrap: wrap;
             justify-content: center;
-            width: 100%;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .lang-button-container {
             display: flex;
-            gap: 10px;
+            justify-content: center;
             margin-bottom: 20px;
+            gap: 10px;
         }
 
         button {
-            padding: 12px 20px;
+            padding: 12px 24px;
             font-size: 1rem;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
             color: var(--text-color);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
             backdrop-filter: blur(10px);
             background: var(--button-bg);
             border: 1px solid var(--glass-border);
@@ -135,33 +152,14 @@
             }
         }
         
-        /* === Optimierungen für Querformat (Handy und Tablet) === */
         @media (orientation: landscape) {
             body {
                 flex-direction: row;
                 justify-content: center;
-                align-items: flex-start; /* Elemente oben ausrichten */
+                align-items: center;
                 padding: 10px;
-                /* Sicherstellen, dass der Body den gesamten Viewport ausfüllt */
-                min-height: 100vh;
-                height: 100vh;
             }
 
-            /* 2. Problem: Weiße Balken auf dem Handy Querformat */
-            /* Erlaubt dem QR-Feld und dem Video, 48% des Platzes einzunehmen */
-            #QR-Code, #videoContainer {
-                flex-shrink: 0; /* Verhindert, dass sie schrumpfen */
-                width: 48%; /* Genug Platz für beide Elemente + 2% Abstand */
-                max-width: 600px; /* Maximale Größe beibehalten */
-                margin: 5px; /* Reduzierter Rand */
-            }
-
-            #QR-Code {
-                /* Sicherstellen, dass das QR-Feld vertikal zentriert ist, wenn es kleiner ist */
-                align-self: center; 
-            }
-
-            /* Titel und Text im Querformat auf schmalen Geräten ausblenden */
             header h1, #text {
                 display: none;
             }
@@ -169,41 +167,19 @@
             #camera-selector-container {
                 display: none !important;
             }
-            
-            /* 3. Problem: Schrift auf dem iPad Querformat ist weg */
-            /* Ab einer Tablet-Breite (768px) den Titel wieder einblenden */
-            @media (min-width: 768px) {
-                header h1, #text {
-                    display: block;
-                    font-size: 1.5rem; /* Etwas kleiner als im Hochformat */
-                    margin: 10px;
-                }
-                body {
-                    /* Hier können wir die Elemente vertikal mittig ausrichten,
-                       sobald der Titel wieder da ist, um einen besseren Fluss zu gewährleisten. */
-                    align-items: center;
-                    flex-direction: column;
-                }
-                
-                /* Neu anordnen, um Video/Scanner unter dem Titel zu platzieren */
-                #QR-Code, #videoContainer {
-                    width: 90%; /* Zurück auf 90% Breite */
-                    max-width: 600px; /* Max. Breite beibehalten */
-                    margin: 10px auto; 
-                }
-                
-                /* Für den Fall, dass Video und QR-Feld nebeneinander bleiben sollen (je nach Präferenz) */
-                /* Wenn Sie möchten, dass sie immer nebeneinander stehen, löschen Sie das obige 'body {flex-direction: column}' */
-                /* Und verwenden Sie stattdessen: */
-                .main-content-row {
-                    display: flex;
-                    justify-content: center;
-                    gap: 20px;
-                    width: 100%;
-                    max-width: 1200px;
-                }
+
+            #QR-Code {
+                max-width: 45%;
+                margin: 10px;
+            }
+
+            #videoContainer {
+                max-width: 45%;
+                padding: 10px;
+                margin: 10px;
+            }
+
+            #trailer {
+                max-height: 80vh;
             }
         }
-        
-        /* Zusätzliche Anpassung, falls eine dedizierte Zeile für QR/Video gewünscht wird */
-        /* Ich füge sie in der index.html ein, um das Layout im Querformat besser zu steuern */
