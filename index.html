@@ -28,29 +28,36 @@
     </header>
 
     <div id="ergebnis"></div>
+    
+    <!-- Container für die Hauptinhalte, um das Layout im Querformat besser zu steuern -->
+    <div class="main-content-row">
+        
+        <div class="content-wrapper">
+            <div id="text">Scanne den QR-Code auf deiner Karte</div>
 
-    <div id="text">Scanne den QR-Code auf deiner Karte</div>
-
-    <div id="camera-selector-container" style="display:none;">
-        <label for="camera-selector">Kamera auswählen:</label>
-        <select id="camera-selector"></select>
-    </div>
-
-    <div id="QR-Code"></div>
-
-    <div class="container" id="videoContainer" style="display:none;">
-        <div class="lang-button-container">
-            <button id="lang-de" class="lang-button active" data-lang="de">Deutsch</button>
-            <button id="lang-en" class="lang-button" data-lang="en">English</button>
+            <div id="camera-selector-container" style="display:none;">
+                <label for="camera-selector">Kamera auswählen:</label>
+                <select id="camera-selector"></select>
+            </div>
         </div>
-        <video id="trailer" controls autoplay width="640" height="360"></video>
-        <div id="videoButtons">
-            <button id="continueButton" style="display:none;">Nächster Trailer</button>
-            <button id="scanAgainButton">Neuen QR-Code scannen</button>
+
+        <div id="QR-Code"></div>
+
+        <div class="container" id="videoContainer" style="display:none;">
+            <div class="lang-button-container">
+                <button id="lang-de" class="lang-button active" data-lang="de">Deutsch</button>
+                <button id="lang-en" class="lang-button" data-lang="en">English</button>
+            </div>
+            <video id="trailer" controls autoplay width="640" height="360"></video>
+            <div id="videoButtons">
+                <button id="continueButton" style="display:none;">Nächster Trailer</button>
+                <button id="scanAgainButton">Neuen QR-Code scannen</button>
+            </div>
         </div>
     </div>
+    
+    <!-- Lade QrScanner Bibliothek und das eigene Skript -->
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js"></script>
+    <script src="script.js"></script>
 </body>
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-md5@0.7.3/build/md5.min.js"></script>
-<script src="script.js"></script>
 </html>
