@@ -25,19 +25,15 @@
 <body>
     <header>
         <h1 id="Titel">Filmster</h1>
+        <div id="text">Scanne den QR-Code auf deiner Karte</div>
+
+        <div id="camera-selector-container" style="display:none;">
+            <label for="camera-selector">Kamera auswählen:</label>
+            <select id="camera-selector"></select>
+        </div>
     </header>
-
     <div id="ergebnis"></div>
-
-    <div id="text">Scanne den QR-Code auf deiner Karte</div>
-
-    <div id="camera-selector-container" style="display:none;">
-        <label for="camera-selector">Kamera auswählen:</label>
-        <select id="camera-selector"></select>
-    </div>
-
     <div id="QR-Code"></div>
-
     <div class="container" id="videoContainer" style="display:none;">
         <div class="lang-button-container">
             <button id="lang-de" class="lang-button active" data-lang="de">Deutsch</button>
