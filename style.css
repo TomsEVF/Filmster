@@ -160,14 +160,6 @@
                 padding: 10px;
             }
 
-            header h1, #text {
-                display: none;
-            }
-
-            #camera-selector-container {
-                display: none !important;
-            }
-
             #QR-Code {
                 max-width: 45%;
                 margin: 10px;
