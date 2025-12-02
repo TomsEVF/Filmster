@@ -3,50 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filmster</title>
-
-    <!-- START: PWA Meta Tags für iOS Home-Bildschirm -->
+    <title>Filmster - QR Film Scanner</title>
+    
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <!-- END: PWA Meta Tags für iOS Home-Bildschirm -->
-    
-    <!-- START: PWA Meta Tags für Android/Chrome -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a232f"> <!-- Dunkle Farbe passend zum Hintergrund -->
-    <!-- END: PWA Meta Tags für Android/Chrome -->
-
+    <meta name="theme-color" content="#0f172a">
     <meta name="format-detection" content="telephone=no">
-     
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1 id="Titel">Filmster</h1>
-        <div id="text">Scanne den QR-Code auf deiner Karte</div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-container">
+                <i class="fas fa-film logo-icon"></i>
+                <h1 class="app-title">Filmster</h1>
+            </div>
+            <p class="app-subtitle">QR Film Scanner</p>
+        </header>
 
-        <div id="camera-selector-container" style="display:none;">
-            <label for="camera-selector">Kamera auswählen:</label>
-            <select id="camera-selector"></select>
-        </div>
-    </header>
-    <div id="ergebnis"></div>
-    <div id="QR-Code"></div>
-    <div class="container" id="videoContainer" style="display:none;">
-        <div class="lang-button-container">
-            <button id="lang-de" class="lang-button active" data-lang="de">Deutsch</button>
-            <button id="lang-en" class="lang-button" data-lang="en">English</button>
-        </div>
-        <video id="trailer" controls autoplay width="640" height="360"></video>
-        <div id="videoButtons">
-            <button id="continueButton" style="display:none;">Nächster Trailer</button>
-            <button id="scanAgainButton">Neuen QR-Code scannen</button>
-        </div>
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Scanner Section mit einfachem Rahmen -->
+            <section id="scannerSection" class="scanner-section active">
+                <div class="instruction-container">
+                    <i class="fas fa-qrcode instruction-icon"></i>
+                    <h2 class="instruction-title">Scanne deine Filmkarte</h2>
+                    <p class="instruction-text">Halte die Kamera über den QR-Code auf deiner Filmkarte</p>
+                </div>
+                
+                <div class="scanner-container">
+                    <div id="qrScanner" class="qr-scanner">
+                        <!-- Einfacher Rahmen für Scan-Bereich -->
+                        <div class="scanner-frame"></div>
+                        <!-- Video-Element -->
+                        <video id="scannerVideo" class="scanner-video" muted playsinline></video>
+                    </div>
+                    
+                    <div class="camera-controls">
+                        <button id="toggleCameraBtn" class="btn-icon" title="Kamera wechseln">
+                            <i class="fas fa-camera-rotate"></i>
+                        </button>
+                        <button id="toggleFlashBtn" class="btn-icon" title="Flash ein/aus">
+                            <i class="fas fa-bolt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="scanResult" class="scan-result"></div>
+            </section>
+
+            <!-- Video Section -->
+            <section id="videoSection" class="video-section">
+                <div class="video-header">
+                    <!-- Nur Sprachumschaltung, keine Film-Infos -->
+                    <div class="language-switcher">
+                        <button class="lang-btn active" data-lang="de">
+                            <i class="fas fa-language"></i> Deutsch
+                        </button>
+                        <button class="lang-btn" data-lang="en">
+                            <i class="fas fa-language"></i> English
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="video-container">
+                    <video id="trailerVideo" class="trailer-video" controls playsinline>
+                        Dein Browser unterstützt das Video-Tag nicht.
+                    </video>
+                    
+                    <div class="trailer-controls">
+                        <!-- Trailer-Navigation -->
+                        <div class="trailer-nav">
+                            <button id="prevTrailerBtn" class="btn-control">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                            <span id="trailerCounter" class="trailer-counter">Trailer 1/3</span>
+                            <button id="nextTrailerBtn" class="btn-control">
+                                <i class="fas fa-step-forward"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Haupt-Controls -->
+                        <div class="main-controls">
+                            <button id="scanAgainBtn" class="btn-primary">
+                                <i class="fas fa-qrcode"></i> Neu scannen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading State -->
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Lade Film-Daten...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorOverlay" class="error-overlay hidden">
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle error-icon"></i>
+                    <h3 class="error-title">Fehler</h3>
+                    <p id="errorMessage" class="error-message"></p>
+                    <button id="retryButton" class="btn-primary">
+                        <i class="fas fa-redo"></i> Erneut versuchen
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <p>Halte den QR-Code im Rahmen für optimalen Scan</p>
+                <div class="footer-icons">
+                    <i class="fas fa-lightbulb"></i>
+                    <i class="fas fa-wifi"></i>
+                    <i class="fas fa-hand-point-up"></i>
+                </div>
+            </div>
+        </footer>
     </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script src="app.js"></script>
 </body>
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-md5@0.7.3/build/md5.min.js"></script>
-<script src="script.js"></script>
 </html>
