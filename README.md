@@ -298,9 +298,9 @@ Dieses Projekt ist unter der **MIT-Lizenz** lizenziert - siehe [LICENSE](LICENSE
 ## 📊 Projekt Status
 
 **Version**: 1.0.0  
-**Letztes Update**: Oktober 2023  
-**Autor**: [Dein Name]  
-**Status**: ⚡ Aktiv entwickelt
+**Letztes Update**: Dezember 2025  
+**Autor**: Tomas 
+**Status**: ⚡ Aktiv
 
 | Bereich | Status | 
 |---------|--------|
