@@ -72,7 +72,7 @@ async function loadFilms() {
     try {
         console.log('📥 Lade Film-Daten...');
         
-        const response = await fetch('Filmster-Filme-V4.csv');
+        const response = await fetch('Filmster-Filme-V5.csv');
         if (!response.ok) throw new Error('CSV nicht gefunden');
         
         const text = await response.text();
