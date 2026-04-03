@@ -2,144 +2,190 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filmster - QR Film Scanner</title>
-    
-    <!-- PWA Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Filmster · Turnier-Edition</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="format-detection" content="telephone=no">
-    
-    <!-- Fonts -->
+    <meta name="theme-color" content="#0b1120">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-container">
-                <i class="fas fa-film logo-icon"></i>
-                <h1 class="app-title">Filmster</h1>
-            </div>
-            <p class="app-subtitle">QR Film Scanner</p>
-        </header>
 
-        <!-- Main Content -->
-        <main class="app-main">
-            <!-- Scanner Section mit einfachem Rahmen -->
-            <section id="scannerSection" class="scanner-section active">
-                <div class="instruction-container">
-                    <i class="fas fa-qrcode instruction-icon"></i>
-                    <h2 class="instruction-title">Scanne deine Filmkarte</h2>
-                    <p class="instruction-text">Halte die Kamera über den QR-Code auf deiner Filmkarte</p>
-                </div>
-                
-                <div class="scanner-container">
-                    <div id="qrScanner" class="qr-scanner">
-                        <!-- Einfacher Rahmen für Scan-Bereich -->
-                        <div class="scanner-frame"></div>
-                        <!-- Video-Element -->
-                        <video id="scannerVideo" class="scanner-video" muted playsinline></video>
-                    </div>
-                    
-                    <div class="camera-controls">
-                        <button id="toggleCameraBtn" class="btn-icon" title="Kamera wechseln">
-                            <i class="fas fa-camera-rotate"></i>
-                        </button>
-                        <button id="toggleFlashBtn" class="btn-icon" title="Flash ein/aus">
-                            <i class="fas fa-bolt"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="scanResult" class="scan-result"></div>
-            </section>
+<div class="app-container">
+    <header class="app-header">
+        <div class="logo"><i class="fas fa-clapperboard"></i><h1>Filmster</h1></div>
+        <p class="tagline">Turnier · Punkte · Spaß</p>
+    </header>
 
-            <!-- Video Section -->
-            <section id="videoSection" class="video-section">
-                <div class="video-header">
-                    <!-- Nur Sprachumschaltung, keine Film-Infos -->
-                    <div class="language-switcher">
-                        <button class="lang-btn active" data-lang="de">
-                            <i class="fas fa-language"></i> Deutsch
-                        </button>
-                        <button class="lang-btn" data-lang="en">
-                            <i class="fas fa-language"></i> English
-                        </button>
-                    </div>
+    <main class="app-main">
+        <!-- MODUS-AUSWAHL (als erstes sichtbar) -->
+        <div id="modeSelectionSection" class="setup-section">
+            <div class="glass-card">
+                <h2><i class="fas fa-gamepad"></i> Spielmodus wählen</h2>
+                <div class="mode-selection">
+                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="normal" checked> <span>🎬 Normal (nur Trailer & Tipps)</span></label>
+                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="tournament"> <span>🏆 Turnier (Runden & Punkte)</span></label>
                 </div>
-                
-                <div class="video-container">
-                    <video id="trailerVideo" class="trailer-video" controls playsinline>
-                        Dein Browser unterstützt das Video-Tag nicht.
-                    </video>
-                    
-                    <div class="trailer-controls">
-                        <!-- Trailer-Navigation -->
-                        <div class="trailer-nav">
-                            <button id="prevTrailerBtn" class="btn-control">
-                                <i class="fas fa-step-backward"></i>
-                            </button>
-                            <span id="trailerCounter" class="trailer-counter">Trailer 1/3</span>
-                            <button id="nextTrailerBtn" class="btn-control">
-                                <i class="fas fa-step-forward"></i>
-                            </button>
+                <div id="tournamentSettingsSelect" style="display: none;">
+                    <div class="target-type-selection">
+                        <label class="target-option"><input type="radio" name="targetTypeSelect" value="points" checked> <span>🎯 Punkteziel</span></label>
+                        <label class="target-option"><input type="radio" name="targetTypeSelect" value="guesses"> <span>✅ Richtig‑erraten‑Ziel</span></label>
+                    </div>
+                    <div class="target-input-group">
+                        <div id="pointsTargetGroupSelect">
+                            <label for="targetScoreSelect">Punkteziel:</label>
+                            <input type="number" id="targetScoreSelect" value="30" min="5" max="200" step="5">
                         </div>
-                        
-                        <!-- Haupt-Controls -->
-                        <div class="main-controls">
-                            <button id="scanAgainBtn" class="btn-primary">
-                                <i class="fas fa-qrcode"></i> Neu scannen
-                            </button>
+                        <div id="guessesTargetGroupSelect" style="display: none;">
+                            <label for="guessTargetSelect">Richtig erratene Filme:</label>
+                            <input type="number" id="guessTargetSelect" value="5" min="1" max="20" step="1">
                         </div>
                     </div>
                 </div>
-            </section>
-
-            <!-- Loading State -->
-            <div id="loadingOverlay" class="loading-overlay">
-                <div class="loading-spinner"></div>
-                <p class="loading-text">Lade Film-Daten...</p>
+                <button id="confirmModeBtn" class="primary-btn" style="margin-top: 1rem;"><i class="fas fa-check"></i> Spiel starten</button>
             </div>
+        </div>
 
-            <!-- Error State -->
-            <div id="errorOverlay" class="error-overlay hidden">
-                <div class="error-content">
-                    <i class="fas fa-exclamation-triangle error-icon"></i>
-                    <h3 class="error-title">Fehler</h3>
-                    <p id="errorMessage" class="error-message"></p>
-                    <button id="retryButton" class="btn-primary">
-                        <i class="fas fa-redo"></i> Erneut versuchen
-                    </button>
+        <!-- SPIELER-SETUP (nur für Turnier) -->
+        <div id="playerSetupSection" class="setup-section hidden">
+            <div class="glass-card">
+                <h2><i class="fas fa-users"></i> Spieler / Teams</h2>
+                <ul id="playerList" class="player-list"></ul>
+                <div class="add-player">
+                    <input type="text" id="newPlayerName" placeholder="Name" maxlength="30">
+                    <button id="addPlayerBtn" class="primary-btn">+ Hinzufügen</button>
+                </div>
+                <div class="setup-actions">
+                    <button id="startGameBtn" class="primary-btn"><i class="fas fa-play"></i> Spiel starten</button>
+                    <button id="backToModeBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Modus ändern</button>
                 </div>
             </div>
-        </main>
+        </div>
 
-        <!-- Footer -->
-        <footer class="app-footer">
-            <div class="footer-content">
-                <p>Halte den QR-Code im Rahmen für optimalen Scan</p>
-                <div class="footer-icons">
-                    <i class="fas fa-lightbulb"></i>
-                    <i class="fas fa-wifi"></i>
-                    <i class="fas fa-hand-point-up"></i>
+        <!-- SCANNER-ANSICHT -->
+        <div id="scannerSection" class="scanner-section hidden">
+            <div class="scanner-card">
+                <div class="scanner-icon"><i class="fas fa-qrcode"></i></div>
+                <h2>Filmkarte scannen</h2>
+                <div id="scannerCurrentPlayer" class="current-player-badge">
+                    <i class="fas fa-user"></i> <span id="scannerPlayerName">—</span> · 
+                    <i class="fas fa-chart-simple"></i> <span id="scannerPlayerScore">0</span> Punkte
+                </div>
+                <p>Halte den QR-Code vor die Kamera</p>
+                <div class="scanner-viewport">
+                    <video id="scannerVideo" class="scanner-video" muted playsinline></video>
+                    <div class="scan-frame"></div>
+                </div>
+                <div class="camera-tools">
+                    <button id="toggleCameraBtn" class="icon-btn" title="Kamera wechseln"><i class="fas fa-camera-rotate"></i></button>
+                    <button id="toggleFlashBtn" class="icon-btn" title="Taschenlampe"><i class="fas fa-bolt"></i></button>
+                    <button id="retryCameraBtn" class="icon-btn" title="Kamera neu starten"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div id="scanFeedback" class="scan-feedback"></div>
+                <div id="scoreboard" class="scoreboard-mini" style="margin-top: 1rem; display: none;"></div>
+                <button id="endGameBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-flag-checkered"></i> Spiel beenden & Sieger</button>
+                <button id="backToSetupFromScannerBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-arrow-left"></i> Zurück zur Übersicht</button>
+            </div>
+        </div>
+
+        <!-- FILM-ANSICHT (Trailer + Tipps) -->
+        <div id="filmSection" class="film-section hidden">
+            <div class="film-card glass-card">
+                <div class="film-header">
+                    <div>
+                        <h2 id="filmTitle">🎬 Film gescannt</h2>
+                        <div class="film-meta"><span id="filmYear"></span><span id="filmDirector"></span></div>
+                    </div>
+                    <div class="film-player-info" id="filmPlayerInfo">
+                        <span class="player-badge"><i class="fas fa-user"></i> <span id="filmCurrentPlayer">—</span></span>
+                        <span class="score-badge"><i class="fas fa-chart-simple"></i> <span id="filmCurrentScore">0</span> Pkt.</span>
+                    </div>
+                    <button id="askGuessBtn" class="primary-btn" style="background: var(--warning);"><i class="fas fa-question-circle"></i> Film erraten?</button>
+                    <button id="nextFilmBtn" class="primary-btn" style="background: var(--success); display: none;"><i class="fas fa-camera"></i> Neuen Film scannen</button>
+                </div>
+
+                <div class="trailer-toolbar">
+                    <div class="language-switch">
+                        <button data-lang="de" class="lang-btn active"><i class="fas fa-language"></i> Deutsch</button>
+                        <button data-lang="en" class="lang-btn"><i class="fas fa-language"></i> English</button>
+                    </div>
+                    <div class="trailer-nav">
+                        <button id="prevTrailerBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                        <span id="trailerCounter" class="trailer-count">Trailer 0/0</span>
+                        <button id="nextTrailerBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <div class="video-wrapper">
+                    <video id="trailerVideo" class="trailer-player" controls playsinline preload="metadata"></video>
+                </div>
+
+                <div class="tips-section">
+                    <div class="tips-header"><i class="fas fa-lightbulb"></i><span>Tipps zum Erscheinungsjahr</span></div>
+                    <div class="tip-buttons">
+                        <button id="nextTipBtn" class="tip-btn primary-tip">📢 Tipp anzeigen</button>
+                    </div>
+                    <div id="tipDisplay" class="tip-display">
+                        <i class="fas fa-info-circle"></i> Klicke auf "Tipp anzeigen".
+                    </div>
                 </div>
             </div>
-        </footer>
-    </div>
+        </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
-    <script src="app.js"></script>
+        <!-- MODAL: Film erraten? (Nur Turnier) -->
+        <div id="guessModal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <h2><i class="fas fa-question-circle"></i> Film erraten?</h2>
+                <p>Hat <strong id="currentPlayerName"></strong> den Film <span id="guessFilmTitle"></span> erraten?</p>
+                <div class="modal-actions">
+                    <button id="guessYesBtn" class="primary-btn">✅ Ja, erraten</button>
+                    <button id="guessNoBtn" class="danger-btn">❌ Nein, nicht erraten</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Rundenabschluss (Punktevergabe) - Nur Turnier -->
+        <div id="roundSummaryModal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <h2><i class="fas fa-chart-line"></i> Runde beendet</h2>
+                <div class="score-input">
+                    <div class="score-row"><span>Schwierigkeit (Basis):</span> <span id="basePoints">0</span> Punkte</div>
+                    <div class="score-row"><button id="addTitlePointsBtn" class="score-btn-small"><i class="fas fa-film"></i> Titel richtig (+1)</button> <span id="titlePoints">0</span></div>
+                    <div class="score-row"><button id="addDirectorPointsBtn" class="score-btn-small"><i class="fas fa-user-tie"></i> Regisseur richtig (+1)</button> <span id="directorPoints">0</span></div>
+                    <div class="score-row"><span>Verwendete Tipps:</span> <span id="tipCount">0</span> (<span id="tipPenalty">0</span> Punkte Abzug)</div>
+                    <div class="score-row total"><span>Rundenpunkte:</span> <span id="roundTotal">0</span></div>
+                </div>
+                <div class="modal-actions">
+                    <button id="confirmRoundBtn" class="primary-btn">Runde speichern & nächster Spieler</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIPP-OVERLAY -->
+        <div id="tipOverlay" class="tip-overlay hidden">
+            <div class="tip-overlay-content">
+                <button id="closeTipOverlay" class="close-tip-btn"><i class="fas fa-times"></i></button>
+                <div class="tip-overlay-icon"><i class="fas fa-lightbulb"></i></div>
+                <h3>Tipp</h3>
+                <div id="tipOverlayText" class="tip-overlay-text"></div>
+                <button id="tipOverlayCloseBtn" class="primary-btn">Schließen</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="loadingOverlay" class="overlay loading-overlay"><div class="spinner"></div><p>Lade Daten...</p></div>
+    <div id="errorOverlay" class="overlay error-overlay hidden"><div class="error-card"><i class="fas fa-circle-exclamation"></i><h3>Fehler</h3><p id="errorMessage"></p><button id="retryButton" class="primary-btn">Erneut versuchen</button></div></div>
+
+    <footer class="app-footer">
+        <p>🎬 Karte scannen → Trailer ansehen → Tipps nutzen → Film erraten → Punkte vergeben</p>
+    </footer>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
