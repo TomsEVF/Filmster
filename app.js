@@ -6,6 +6,7 @@
  * - Normalmodus: Keine Punktevergabe, direkt zurück zum Scanner
  * - Fehlerhafte QR-Codes stoppen die Kamera nicht
  * - Kamera-Fehlerbehandlung mit Neuversuch
+ * - Filmname wird NICHT vor dem Erraten angezeigt (in beiden Modi)
  */
 
 // ======================== GLOBALE VARIABLEN ========================
@@ -49,7 +50,7 @@ let basePointsSpan, titlePointsSpan, directorPointsSpan, tipCountSpan, tipPenalt
 let addTitlePointsBtn, addDirectorPointsBtn, confirmRoundBtn;
 let guessFilmTitleSpan, currentPlayerNameSpan, guessYesBtn, guessNoBtn;
 let scannerPlayerNameSpan, scannerPlayerScoreSpan;
-let filmCurrentPlayerSpan, filmCurrentScoreSpan, filmPlayerInfo;
+let filmCurrentPlayerSpan, filmCurrentScoreSpan, filmPlayerInfo, filmTitleElement;
 let modeRadiosSelect, targetTypeRadiosSelect, targetScoreSelect, guessTargetSelect, confirmModeBtn;
 let tournamentSettingsSelectDiv, pointsTargetGroupSelect, guessesTargetGroupSelect;
 
@@ -112,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     filmCurrentPlayerSpan = document.getElementById('filmCurrentPlayer');
     filmCurrentScoreSpan = document.getElementById('filmCurrentScore');
     filmPlayerInfo = document.getElementById('filmPlayerInfo');
+    filmTitleElement = document.getElementById('filmTitle');
     
     // Modus-Auswahl Elemente
     modeRadiosSelect = document.querySelectorAll('input[name="gameModeSelect"]');
@@ -357,9 +359,10 @@ function showFilmView() {
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
 
-    document.getElementById('filmTitle').innerText = getFilmTitle(app.currentFilm);
-    document.getElementById('filmYear').innerText = '';
-    document.getElementById('filmDirector').innerText = '';
+    // Filmname wird NICHT angezeigt – nur Platzhalter
+    if (filmTitleElement) filmTitleElement.innerText = '🎬 Film gescannt (geheim)';
+    document.getElementById('filmYear').innerHTML = '';
+    document.getElementById('filmDirector').innerHTML = '';
     titleBonusUsed = false;
     directorBonusUsed = false;
     currentTipUsage = 0;
@@ -381,7 +384,6 @@ function showFilmView() {
         if (nextFilmBtn) {
             nextFilmBtn.style.display = 'inline-flex';
             nextFilmBtn.onclick = () => {
-                // Zurück zum Scanner ohne Punktevergabe
                 showScanner();
             };
         }
@@ -399,7 +401,6 @@ async function startScanner() {
     }
     if (!scannerVideo) return;
     
-    // Feedback zurücksetzen
     if (scanFeedback) scanFeedback.innerText = '⏳ Kamera wird gestartet...';
     scanFeedback.classList.remove('error');
     
@@ -424,7 +425,6 @@ async function startScanner() {
             scanFeedback.innerText = '❌ Kamera-Fehler: ' + error.message + '. Klicke auf "Kamera neu starten".';
             scanFeedback.classList.add('error');
         }
-        // Kein automatischer Neustart, Benutzer muss klicken
     }
 }
 
@@ -441,7 +441,6 @@ async function stopScanner() {
 }
 
 async function handleQRScan(result) {
-    // Nur verarbeiten, wenn Scanner aktiv und FilmSection nicht sichtbar
     if (!app.scanner || !scannerSection.classList.contains('hidden') === false) return;
     
     const qrData = result.data;
@@ -451,7 +450,6 @@ async function handleQRScan(result) {
             scanFeedback.innerText = '❌ Ungültiger QR-Code – bitte Filmkarte scannen';
             setTimeout(() => { if (scanFeedback && !scannerSection.classList.contains('hidden')) scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; }, 2000);
         }
-        // Kamera läuft weiter, kein Stop
         return;
     }
     const foundFilm = app.films.find(f => f.Nr === filmId);
@@ -463,10 +461,9 @@ async function handleQRScan(result) {
         return;
     }
     
-    // Gültiger Film: Kamera stoppen und Film anzeigen
     app.currentFilm = foundFilm;
     await stopScanner();
-    console.log('Film gefunden:', app.currentFilm['Titel Original']);
+    console.log('Film gefunden (Name geheim):', foundFilm['Titel Original']);
     showFilmView();
 }
 
@@ -476,7 +473,6 @@ function getFilmTitle(film) {
     return film['Titel Original'] || 'Unbekannt';
 }
 
-// Kamera neu starten (bei Fehlern)
 async function restartCamera() {
     if (scanFeedback) {
         scanFeedback.innerText = '⏳ Kamera wird neu gestartet...';
@@ -497,6 +493,7 @@ async function restartCamera() {
 function openGuessModal() {
     if (gameMode !== 'tournament') return;
     if (!app.currentFilm) return;
+    // HIER wird der echte Filmname erstmals angezeigt
     guessFilmTitleSpan.innerText = getFilmTitle(app.currentFilm);
     if (players.length > 0 && currentPlayerIndex < players.length) {
         currentPlayerNameSpan.innerText = players[currentPlayerIndex].name;
