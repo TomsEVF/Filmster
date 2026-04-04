@@ -35,6 +35,7 @@ let directorBonusUsed = false;
 let tempTitleBonus = 0;
 let tempDirectorBonus = 0;
 let wasGuessed = false;
+let invalidCount = 0;
 
 let endAfterCurrentRound = false;
 let endRoundPlayerIndex = null;
@@ -406,30 +407,35 @@ async function startScanner() {
     scanFeedback.classList.remove('error');
     
     try {
-        // Optimierte Konfiguration für bessere QR-Code-Erkennung:
-        // - höhere Auflösung (ideal 1920x1080)
-        // - inversionMode 'both' erkennt helle und dunkle Codes
-        // - erhöhte maxScansPerSecond für flüssigeres Scannen
+        // Optimierte Konfiguration:
+        // - inversionMode 'both' für helle & dunkle QR-Codes
+        // - maxScansPerSecond auf 5 (stabiler als 10)
+        // - VideoConstraints mit Belichtungs- und Weißabgleich-Empfehlungen
         app.scanner = new QrScanner(
             scannerVideo,
             handleQRScan,
             {
                 preferredCamera: 'environment',
-                maxScansPerSecond: 10,
+                maxScansPerSecond: 5,
                 highlightScanRegion: false,
                 highlightCodeOutline: false,
                 returnDetailedScanResult: true,
-                inversionMode: 'both',   // wichtig für dunkle Hintergründe
+                inversionMode: 'both',
                 videoConstraints: {
                     width: { ideal: 1920 },
                     height: { ideal: 1080 },
-                    facingMode: 'environment'
+                    facingMode: 'environment',
+                    exposureMode: 'continuous',
+                    exposureCompensation: 0.5,
+                    whiteBalanceMode: 'continuous'
                 }
             }
         );
         await app.scanner.start();
-        if (scanFeedback) scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.';
-        scanFeedback.classList.remove('error');
+        if (scanFeedback) {
+            scanFeedback.innerText = '✅ Kamera aktiv. Bei roten/grünen Codes: gute Ausleuchtung hilft!';
+            scanFeedback.classList.remove('error');
+        }
     } catch (error) {
         console.error('Scanner Start Fehler:', error);
         if (scanFeedback) {
@@ -456,7 +462,6 @@ let lastScanTime = 0;
 async function handleQRScan(result) {
     if (!app.scanner || !scannerSection.classList.contains('hidden') === false) return;
     
-    // Debounce: ignoriere Scans, die schneller als 500ms nach dem letzten kommen
     const now = Date.now();
     if (now - lastScanTime < 500) return;
     lastScanTime = now;
@@ -464,15 +469,31 @@ async function handleQRScan(result) {
     const qrData = result.data;
     const filmId = extractFilmId(qrData);
     if (!filmId) {
-        if (scanFeedback) {
-            scanFeedback.innerText = '❌ Ungültiger QR-Code – bitte Filmkarte scannen';
-            setTimeout(() => { 
-                if (scanFeedback && !scannerSection.classList.contains('hidden')) 
-                    scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
-            }, 2000);
+        invalidCount++;
+        if (invalidCount >= 3) {
+            if (scanFeedback) {
+                scanFeedback.innerText = '❌ QR-Code nicht erkennbar. Bei roten/grünen Codes: Helligkeit erhöhen oder anderen Winkel versuchen.';
+                setTimeout(() => { 
+                    if (scanFeedback && !scannerSection.classList.contains('hidden')) 
+                        scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
+                    invalidCount = 0;
+                }, 3000);
+            }
+        } else {
+            if (scanFeedback) {
+                scanFeedback.innerText = '❌ Ungültiger QR-Code – bitte Filmkarte scannen';
+                setTimeout(() => { 
+                    if (scanFeedback && !scannerSection.classList.contains('hidden')) 
+                        scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
+                }, 2000);
+            }
         }
         return;
     }
+    
+    // Erfolgreicher Scan: Zähler zurücksetzen
+    invalidCount = 0;
+    
     const foundFilm = app.films.find(f => f.Nr === filmId);
     if (!foundFilm) {
         if (scanFeedback) {
