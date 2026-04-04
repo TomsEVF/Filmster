@@ -284,6 +284,25 @@ body {
     object-fit: cover;
 }
 
+#scannerVideoContainer video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+}
+
+.scan-frame {
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    width: 70%;
+    height: 70%;
+    border: 2px solid rgba(59, 130, 246, 0.8);
+    border-radius: 20px;
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
 .camera-tools {
     display: flex;
     justify-content: center;
@@ -301,6 +320,12 @@ body {
 
 .scan-feedback.error {
     color: var(--danger);
+}
+
+.hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0.5rem 0;
 }
 
 /* ----- FILM SECTION ----- */
@@ -674,6 +699,7 @@ body {
     gap: 2rem;
     margin: 1rem 0;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .mode-option, .target-option {
@@ -759,6 +785,42 @@ body {
     font-size: 0.9rem;
 }
 
+/* Multiplayer spezifische Elemente */
+#multiplayerSettings {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+#joinGamePanel {
+    margin-top: 1rem;
+}
+
+#roomCodeInput {
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 40px;
+    padding: 0.6rem 1rem;
+    color: white;
+    font-size: 1rem;
+    text-align: center;
+    width: 80%;
+    max-width: 200px;
+}
+
+#hostInfoPanel {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+}
+
+#roomCodeDisplay {
+    font-size: 1.4rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: var(--primary);
+}
+
 /* Footer */
 .app-footer {
     margin-top: 2.5rem;
@@ -797,10 +859,63 @@ body {
     .film-header { flex-direction: column; }
 }
 
-/* style.css – Ergänze am Ende des Files: */
-#scannerVideoContainer video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 20px;
+/* ===== LOBBY SECTION (Multiplayer Wartezimmer) ===== */
+#lobbySection {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+#lobbyQrCode {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0;
+}
+#lobbyQrCode canvas,
+#lobbyQrCode img {
+    background: white;
+    padding: 10px;
+    border-radius: 16px;
+    width: 180px;
+    height: 180px;
+}
+
+#lobbyRoomCode {
+    font-family: monospace;
+    background: rgba(0,0,0,0.3);
+    padding: 0.2rem 0.8rem;
+    border-radius: 12px;
+    display: inline-block;
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+}
+
+#lobbyPlayersUl {
+    list-style: none;
+    padding: 0;
+    margin-top: 0.5rem;
+}
+#lobbyPlayersUl li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+#lobbyPlayersUl li i {
+    color: var(--primary);
+    width: 24px;
+}
+
+#startMultiplayerGameBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Warte-Bildschirm für Spieler */
+#waitingForHost {
+    text-align: center;
+}
+#waitingForHost .glass-card {
+    max-width: 400px;
+    margin: 0 auto;
 }
