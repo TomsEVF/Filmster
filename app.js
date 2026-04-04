@@ -7,7 +7,7 @@
  * - Fehlerhafte QR-Codes stoppen die Kamera nicht
  * - Kamera-Fehlerbehandlung mit Neuversuch
  * - Filmname wird NICHT vor dem Erraten angezeigt (in beiden Modi)
- * - Verbesserte QR-Code-Erkennung: höhere Auflösung, inversionMode 'both'
+ * - Verbesserte QR-Code-Erkennung: html5-qrcode Bibliothek
  */
 
 // ======================== GLOBALE VARIABLEN ========================
@@ -42,7 +42,7 @@ let endRoundPlayerIndex = null;
 
 // DOM-Elemente
 let modeSelectionSection, playerSetupSection, scannerSection, filmSection, guessModal, roundModal;
-let scannerVideo, scanFeedback, loadingOverlay, errorOverlay, errorMessage, retryButton;
+let scannerVideoContainer, scanFeedback, loadingOverlay, errorOverlay, errorMessage, retryButton;
 let trailerVideo, prevTrailerBtn, nextTrailerBtn, trailerCounter;
 let langBtns, toggleCameraBtn, toggleFlashBtn, retryCameraBtn, nextTipBtn, tipDisplay, tipOverlay, tipOverlayText;
 let closeTipOverlayBtn, tipOverlayCloseBtn, backToSetupFromScannerBtn, askGuessBtn, nextFilmBtn;
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     filmSection = document.getElementById('filmSection');
     guessModal = document.getElementById('guessModal');
     roundModal = document.getElementById('roundSummaryModal');
-    scannerVideo = document.getElementById('scannerVideo');
+    scannerVideoContainer = document.getElementById('scannerVideoContainer');
     scanFeedback = document.getElementById('scanFeedback');
     loadingOverlay = document.getElementById('loadingOverlay');
     errorOverlay = document.getElementById('errorOverlay');
@@ -146,7 +146,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function waitForQrScanner() {
-    return new Promise(r => { const check = () => { if (typeof QrScanner !== 'undefined') r(); else setTimeout(check, 100); }; check(); });
+    return new Promise(r => { 
+        const check = () => { 
+            if (typeof Html5Qrcode !== 'undefined') r(); 
+            else setTimeout(check, 100); 
+        }; 
+        check(); 
+    });
 }
 
 // ======================== DATEN LADEN ========================
@@ -361,7 +367,6 @@ function showFilmView() {
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
 
-    // Filmname wird NICHT angezeigt – nur Platzhalter
     if (filmTitleElement) filmTitleElement.innerText = '🎬 Film gescannt (geheim)';
     document.getElementById('filmYear').innerHTML = '';
     document.getElementById('filmDirector').innerHTML = '';
@@ -379,7 +384,6 @@ function showFilmView() {
     loadCurrentTrailer();
     updateFilmPlayerDisplay();
     
-    // Im Normalmodus: "Film erraten?" Button ausblenden, "Neuen Film scannen" Button einblenden
     if (gameMode === 'normal') {
         if (askGuessBtn) askGuessBtn.style.display = 'none';
         if (filmPlayerInfo) filmPlayerInfo.style.display = 'none';
@@ -396,44 +400,68 @@ function showFilmView() {
     }
 }
 
-// ======================== KAMERA (verbesserte QR-Erkennung) ========================
+// ======================== KAMERA (html5-qrcode) ========================
 async function startScanner() {
     if (app.scanner) {
         try { await stopScanner(); } catch(e) { console.warn('Stop vor Start fehlgeschlagen', e); }
     }
-    if (!scannerVideo) return;
-    
-    if (scanFeedback) scanFeedback.innerText = '⏳ Kamera wird gestartet...';
-    scanFeedback.classList.remove('error');
-    
+
+    if (scanFeedback) {
+        scanFeedback.innerText = '⏳ Kamera wird gestartet...';
+        scanFeedback.classList.remove('error');
+    }
+
     try {
-        // Optimierte Konfiguration:
-        // - inversionMode 'both' für helle & dunkle QR-Codes
-        // - maxScansPerSecond auf 5 (stabiler als 10)
-        // - VideoConstraints mit Belichtungs- und Weißabgleich-Empfehlungen
-        app.scanner = new QrScanner(
-            scannerVideo,
-            handleQRScan,
-            {
-                preferredCamera: 'environment',
-                maxScansPerSecond: 5,
-                highlightScanRegion: false,
-                highlightCodeOutline: false,
-                returnDetailedScanResult: true,
-                inversionMode: 'both',
-                videoConstraints: {
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    facingMode: 'environment',
-                    exposureMode: 'continuous',
-                    exposureCompensation: 0.5,
-                    whiteBalanceMode: 'continuous'
+        const container = document.getElementById('scannerVideoContainer');
+        if (container) container.innerHTML = '';
+
+        app.scanner = new Html5Qrcode("scannerVideoContainer");
+
+        // Einfache Konfiguration ohne spezielle videoConstraints
+        const config = {
+            fps: 15,
+            qrbox: { width: 300, height: 300 },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [0] // 0 = SCAN_TYPE_CAMERA
+        };
+
+        // Versuche zuerst die Rückkamera (environment)
+        try {
+            await app.scanner.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    console.log("✅ QR-Code erkannt:", decodedText);
+                    handleQRScan({ data: decodedText });
+                },
+                (errorMessage) => {
+                    if (errorMessage && !errorMessage.includes("NotFoundException")) {
+                        console.warn("Scan-Fehler:", errorMessage);
+                    }
                 }
-            }
-        );
-        await app.scanner.start();
+            );
+        } catch (envError) {
+            console.warn("Rückkamera fehlgeschlagen, versuche Frontkamera:", envError);
+            // Fallback zur Frontkamera
+            await app.scanner.start(
+                { facingMode: "user" },
+                config,
+                (decodedText) => {
+                    console.log("✅ QR-Code erkannt (Frontkamera):", decodedText);
+                    handleQRScan({ data: decodedText });
+                },
+                (errorMessage) => {
+                    if (errorMessage && !errorMessage.includes("NotFoundException")) {
+                        console.warn("Scan-Fehler (Frontkamera):", errorMessage);
+                    }
+                }
+            );
+        }
+
         if (scanFeedback) {
-            scanFeedback.innerText = '✅ Kamera aktiv. Bei roten/grünen Codes: gute Ausleuchtung hilft!';
+            scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.';
             scanFeedback.classList.remove('error');
         }
     } catch (error) {
@@ -449,15 +477,11 @@ async function stopScanner() {
     if (!app.scanner) return;
     try {
         await app.scanner.stop();
-        if (scannerVideo && scannerVideo.srcObject) {
-            scannerVideo.srcObject.getTracks().forEach(track => track.stop());
-            scannerVideo.srcObject = null;
-        }
+        await app.scanner.clear();
     } catch(e) { console.warn('Stop Fehler:', e); }
     app.scanner = null;
 }
 
-// Verhindert doppelte Scans in kurzer Zeit (zusätzlich zu maxScansPerSecond)
 let lastScanTime = 0;
 async function handleQRScan(result) {
     if (!app.scanner || !scannerSection.classList.contains('hidden') === false) return;
@@ -491,7 +515,6 @@ async function handleQRScan(result) {
         return;
     }
     
-    // Erfolgreicher Scan: Zähler zurücksetzen
     invalidCount = 0;
     
     const foundFilm = app.films.find(f => f.Nr === filmId);
@@ -512,9 +535,14 @@ async function handleQRScan(result) {
     showFilmView();
 }
 
-function extractFilmId(qrData) { let m = qrData.match(/id=(\d+)/); return m ? m[1] : (qrData.match(/^(\d+)$/) || [])[1]; }
+function extractFilmId(qrData) { 
+    let m = qrData.match(/id=(\d+)/); 
+    return m ? m[1] : (qrData.match(/^(\d+)$/) || [])[1]; 
+}
+
 function getFilmTitle(film) {
-    if (app.currentLanguage === 'de' && film['Titel Deutsch'] && film['Titel Deutsch'].trim()) return film['Titel Deutsch'];
+    if (app.currentLanguage === 'de' && film['Titel Deutsch'] && film['Titel Deutsch'].trim()) 
+        return film['Titel Deutsch'];
     return film['Titel Original'] || 'Unbekannt';
 }
 
@@ -836,8 +864,8 @@ function setupEventListeners() {
     if (langBtns.length) langBtns.forEach(btn => btn.addEventListener('click', () => switchLanguage(btn.dataset.lang)));
     if (prevTrailerBtn) prevTrailerBtn.addEventListener('click', prevTrailer);
     if (nextTrailerBtn) nextTrailerBtn.addEventListener('click', nextTrailer);
-    if (toggleCameraBtn) toggleCameraBtn.addEventListener('click', async () => { if(app.scanner){ const cams = await QrScanner.listCameras(true); if(cams.length>1){ const cur = await app.scanner.getCamera(); const other = cams.find(c=>c.id !== cur); if(other) app.scanner.setCamera(other.id); } } });
-    if (toggleFlashBtn) toggleFlashBtn.addEventListener('click', () => { if(app.scanner) app.scanner.toggleFlash(); });
+    if (toggleCameraBtn) toggleCameraBtn.disabled = true;
+    if (toggleFlashBtn) toggleFlashBtn.disabled = true;
     if (retryCameraBtn) retryCameraBtn.addEventListener('click', () => restartCamera());
     if (retryButton) retryButton.addEventListener('click', () => location.reload());
     if (nextTipBtn) nextTipBtn.addEventListener('click', showNextTip);
