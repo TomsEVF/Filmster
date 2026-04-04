@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -24,7 +25,7 @@
     </header>
 
     <main class="app-main">
-        <!-- MODUS-AUSWAHL (erweitert um Multiplayer) -->
+        <!-- MODUS-AUSWAHL -->
         <div id="modeSelectionSection" class="setup-section">
             <div class="glass-card">
                 <h2><i class="fas fa-gamepad"></i> Spielmodus wählen</h2>
@@ -41,11 +42,6 @@
                     <div id="joinGamePanel" style="display: none;">
                         <input type="text" id="roomCodeInput" placeholder="Raumcode eingeben" style="width: 80%; margin-bottom: 0.5rem;">
                         <button id="confirmJoinBtn" class="primary-btn">Beitreten</button>
-                    </div>
-                    <div id="hostInfoPanel" style="display: none; background: rgba(0,0,0,0.3); border-radius: 20px; padding: 1rem;">
-                        <p><i class="fas fa-link"></i> Raumcode: <strong id="roomCodeDisplay"></strong></p>
-                        <p>Teile diesen Code mit deinen Freunden.</p>
-                        <p>Sie können unter <strong>„Spiel beitreten“</strong> den Code eingeben.</p>
                     </div>
                 </div>
                 <div id="tournamentSettingsSelect" style="display: none;">
@@ -84,7 +80,28 @@
             </div>
         </div>
 
-        <!-- SCANNER-ANSICHT (für Host im Multiplayer oder Einzel) -->
+        <!-- LOBBY (Host Wartezimmer) -->
+        <div id="lobbySection" class="setup-section hidden">
+            <div class="glass-card">
+                <h2><i class="fas fa-door-open"></i> Lobby – Spieler beitreten</h2>
+                <div id="lobbyRoomInfo" style="text-align: center; margin-bottom: 1rem;">
+                    <p><i class="fas fa-hashtag"></i> Raumcode: <strong id="lobbyRoomCode" style="font-size: 1.6rem; letter-spacing: 2px;"></strong></p>
+                    <p>Teile diesen Code oder den QR-Code mit deinen Freunden.</p>
+                    <div id="lobbyQrCode" style="display: flex; justify-content: center; margin: 1rem 0;"></div>
+                    <p><i class="fas fa-link"></i> <a href="#" id="lobbyJoinLink" target="_blank">Beitrittslink</a></p>
+                </div>
+                <div id="lobbyPlayerList">
+                    <h3><i class="fas fa-users"></i> Spieler (<span id="playerCount">0</span>)</h3>
+                    <ul id="lobbyPlayersUl" class="player-list" style="max-height: 200px;"></ul>
+                </div>
+                <div class="setup-actions" style="margin-top: 1rem;">
+                    <button id="startMultiplayerGameBtn" class="primary-btn" disabled><i class="fas fa-play"></i> Spiel starten (min. 1 Spieler)</button>
+                    <button id="backToModeFromLobbyBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Abbrechen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCANNER-ANSICHT -->
         <div id="scannerSection" class="scanner-section hidden">
             <div class="scanner-card">
                 <div class="scanner-icon"><i class="fas fa-qrcode"></i></div>
@@ -155,7 +172,7 @@
             </div>
         </div>
 
-        <!-- MODAL: Film erraten? (Nur Turnier / Multiplayer Host) -->
+        <!-- MODAL: Film erraten? -->
         <div id="guessModal" class="modal hidden">
             <div class="modal-content glass-card">
                 <h2><i class="fas fa-question-circle"></i> Film erraten?</h2>
@@ -167,7 +184,7 @@
             </div>
         </div>
 
-        <!-- MODAL: Rundenabschluss (Punktevergabe) -->
+        <!-- MODAL: Rundenabschluss -->
         <div id="roundSummaryModal" class="modal hidden">
             <div class="modal-content glass-card">
                 <h2><i class="fas fa-chart-line"></i> Runde beendet</h2>
