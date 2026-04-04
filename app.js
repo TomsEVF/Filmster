@@ -1,12 +1,3 @@
-/**
- * Filmster – Multiplayer-Edition
- * - Modus-Auswahl: Einzel (manuell), Einzel (Turnier), Multiplayer (Host/Join)
- * - Multiplayer: PeerJS basierte Echtzeit-Synchronisation
- * - Host erstellt Raum mit Code, Spieler treten bei
- * - Punktestand wird live an alle synchronisiert
- * - QR-Code-Erkennung mit html5-qrcode, Fallback Datei-Upload
- */
-
 // ======================== GLOBALE VARIABLEN ========================
 let app = {
     films: [],
@@ -19,10 +10,10 @@ let app = {
     isInitialized: false
 };
 
-// Spielzustand
+// Lokale Spielvariablen (Einzelspieler Turnier)
 let players = [];
 let currentPlayerIndex = 0;
-let gameMode = 'normal'; // normal, tournament, multiplayer
+let gameMode = 'normal';
 let targetType = 'points';
 let targetScore = 30;
 let guessTarget = 5;
@@ -33,45 +24,48 @@ let directorBonusUsed = false;
 let tempTitleBonus = 0;
 let tempDirectorBonus = 0;
 let wasGuessed = false;
-let invalidCount = 0;
 let endAfterCurrentRound = false;
 let endRoundPlayerIndex = null;
+let invalidCount = 0;
 
-// Multiplayer
+// Multiplayer-Variablen (PeerJS)
 let peer = null;
-let isHost = false;
-let roomCode = null;
-let connections = []; // Array von PeerJS DataConnections
+let connections = [];
+let multiplayerScores = {};
+let playerOrder = [];
+let currentTurnPlayerId = null;
+let currentFilmData = null;
 let myPeerId = null;
 let playerName = null;
-let multiplayerScores = {}; // { peerId: { name, score, correctGuesses } }
+let isHost = false;
+let roomCode = null;
 let multiplayerTargetType = 'points';
 let multiplayerTargetValue = 30;
 
-// DOM-Elemente
+// DOM-Elemente (werden beim Laden zugewiesen)
 let modeSelectionSection, playerSetupSection, scannerSection, filmSection, guessModal, roundModal;
 let scannerVideoContainer, scanFeedback, loadingOverlay, errorOverlay, errorMessage, retryButton;
 let trailerVideo, prevTrailerBtn, nextTrailerBtn, trailerCounter;
 let langBtns, toggleCameraBtn, toggleFlashBtn, retryCameraBtn, nextTipBtn, tipDisplay, tipOverlay, tipOverlayText;
 let closeTipOverlayBtn, tipOverlayCloseBtn, backToSetupFromScannerBtn, askGuessBtn, nextFilmBtn;
 let playerListUl, newPlayerNameInput, addPlayerBtn, startGameBtn, backToModeBtn;
-let endGameBtn;
-let basePointsSpan, titlePointsSpan, directorPointsSpan, tipCountSpan, tipPenaltySpan, roundTotalSpan;
+let endGameBtn, basePointsSpan, titlePointsSpan, directorPointsSpan, tipCountSpan, tipPenaltySpan, roundTotalSpan;
 let addTitlePointsBtn, addDirectorPointsBtn, confirmRoundBtn;
 let guessFilmTitleSpan, currentPlayerNameSpan, guessYesBtn, guessNoBtn;
-let scannerPlayerNameSpan, scannerPlayerScoreSpan;
-let filmCurrentPlayerSpan, filmCurrentScoreSpan, filmPlayerInfo, filmTitleElement;
+let scannerPlayerNameSpan, scannerPlayerScoreSpan, filmCurrentPlayerSpan, filmCurrentScoreSpan, filmPlayerInfo, filmTitleElement;
 let modeRadiosSelect, targetTypeRadiosSelect, targetScoreSelect, guessTargetSelect, confirmModeBtn;
-let tournamentSettingsSelectDiv, pointsTargetGroupSelect, guessesTargetGroupSelect;
-let multiplayerSettingsDiv, hostGameBtn, joinGameBtn, joinGamePanel, roomCodeInput, confirmJoinBtn;
+let tournamentSettingsSelectDiv, pointsTargetGroupSelect, guessesTargetGroupSelect, multiplayerSettingsDiv;
+let hostGameBtn, joinGameBtn, joinGamePanel, roomCodeInput, confirmJoinBtn;
 let lobbySection, lobbyRoomCodeSpan, lobbyQrCodeDiv, lobbyPlayersUl, playerCountSpan, startMultiplayerGameBtn, backToModeFromLobbyBtn;
+let waitingView, waitingFilmTitleSpan, waitingTrailerVideo, waitingTipDisplay, scoreboardWaiting, cancelWaitBtn;
+let spectatorView, waitTurnView;
 
 // ======================== INIT ========================
 document.addEventListener('DOMContentLoaded', async () => {
     if (app.isInitialized) return;
     app.isInitialized = true;
 
-    // DOM-Referenzen
+    // DOM-Referenzen setzen
     modeSelectionSection = document.getElementById('modeSelectionSection');
     playerSetupSection = document.getElementById('playerSetupSection');
     scannerSection = document.getElementById('scannerSection');
@@ -126,8 +120,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     filmCurrentScoreSpan = document.getElementById('filmCurrentScore');
     filmPlayerInfo = document.getElementById('filmPlayerInfo');
     filmTitleElement = document.getElementById('filmTitle');
-    
-    // Modus-Auswahl Elemente
     modeRadiosSelect = document.querySelectorAll('input[name="gameModeSelect"]');
     targetTypeRadiosSelect = document.querySelectorAll('input[name="targetTypeSelect"]');
     targetScoreSelect = document.getElementById('targetScoreSelect');
@@ -142,32 +134,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     joinGamePanel = document.getElementById('joinGamePanel');
     roomCodeInput = document.getElementById('roomCodeInput');
     confirmJoinBtn = document.getElementById('confirmJoinBtn');
-    
-    // Lobby-Elemente
     lobbySection = document.getElementById('lobbySection');
-    lobbyRoomCodeSpan = document.getElementById('lobbyRoomCode');
+    lobbyRoomCodeSpan = document.getElementById('lobbyRoomCodeSpan');
     lobbyQrCodeDiv = document.getElementById('lobbyQrCode');
     lobbyPlayersUl = document.getElementById('lobbyPlayersUl');
     playerCountSpan = document.getElementById('playerCount');
     startMultiplayerGameBtn = document.getElementById('startMultiplayerGameBtn');
     backToModeFromLobbyBtn = document.getElementById('backToModeFromLobbyBtn');
+    waitingView = document.getElementById('waitingView');
+    waitingFilmTitleSpan = document.getElementById('waitingFilmTitleSpan');
+    waitingTrailerVideo = document.getElementById('waitingTrailerVideo');
+    waitingTipDisplay = document.getElementById('waitingTipDisplay');
+    scoreboardWaiting = document.getElementById('scoreboardWaiting');
+    cancelWaitBtn = document.getElementById('cancelWaitBtn');
+    spectatorView = document.getElementById('spectatorView');
+    waitTurnView = document.getElementById('waitTurnView');
 
-    // Daten laden
-    await loadFilms();
-    await loadFunFacts();
-    await waitForQrScanner();
-    
-    // Event-Listener
-    setupEventListeners();
-    
-    // Alle gespeicherten Daten löschen
-    clearAllGameData();
-    
-    // Modus-Auswahl anzeigen
-    showModeSelection();
-    
-    loadingOverlay.style.display = 'none';
-    console.log('✅ App bereit');
+    try {
+        await loadFilms();
+        await loadFunFacts();
+        await waitForQrScanner();
+        setupEventListeners();
+        clearAllGameData();
+        showModeSelection();
+    } catch (err) {
+        console.error('Initialisierungsfehler:', err);
+        if (errorOverlay) {
+            errorMessage.innerText = 'Fehler beim Laden der Daten: ' + err.message;
+            errorOverlay.classList.remove('hidden');
+        }
+    } finally {
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
 });
 
 function waitForQrScanner() {
@@ -257,7 +255,6 @@ function clearAllGameData() {
     endRoundPlayerIndex = null;
     app.currentFilm = null;
     
-    // Multiplayer zurücksetzen
     if (peer) {
         try { peer.destroy(); } catch(e) {}
         peer = null;
@@ -268,8 +265,10 @@ function clearAllGameData() {
     multiplayerScores = {};
     myPeerId = null;
     playerName = null;
+    playerOrder = [];
+    currentTurnPlayerId = null;
+    currentFilmData = null;
     
-    // Lobby-UI zurücksetzen
     if (lobbyPlayersUl) lobbyPlayersUl.innerHTML = '';
     if (playerCountSpan) playerCountSpan.innerText = '0';
     if (startMultiplayerGameBtn) startMultiplayerGameBtn.disabled = true;
@@ -282,7 +281,7 @@ function clearAllGameData() {
     updateScoreboard();
 }
 
-// ======================== SPIELERVERWALTUNG (Einzel) ========================
+// ======================== SPIELERVERWALTUNG (Einzel-Turnier) ========================
 function updatePlayerListUI() {
     if (!playerListUl) return;
     playerListUl.innerHTML = '';
@@ -315,6 +314,20 @@ function savePlayersToLocal() {
     const data = { players, gameMode, targetType, targetScore, guessTarget };
     localStorage.setItem('filmsterData', JSON.stringify(data));
 }
+function loadPlayersFromLocal() {
+    const saved = localStorage.getItem('filmsterData');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            players = data.players || [];
+            gameMode = data.gameMode || 'normal';
+            targetType = data.targetType || 'points';
+            targetScore = data.targetScore || 30;
+            guessTarget = data.guessTarget || 5;
+        } catch(e) {}
+    }
+    players.forEach(p => { if (p.correctGuesses === undefined) p.correctGuesses = 0; if (p.rounds === undefined) p.rounds = []; });
+}
 function getRandomStartPlayer() {
     if (players.length === 0) return null;
     return Math.floor(Math.random() * players.length);
@@ -324,19 +337,38 @@ function getRandomStartPlayer() {
 function updateScoreboard() {
     const scoreboardDiv = document.getElementById('scoreboard');
     if (!scoreboardDiv) return;
-    
     if (gameMode === 'multiplayer') {
         scoreboardDiv.style.display = 'block';
         let html = `<h4><i class="fas fa-chart-simple"></i> Live-Punktestand</h4>`;
+        if (currentTurnPlayerId && multiplayerScores[currentTurnPlayerId]) {
+            html += `<div class="current-player-indicator"><i class="fas fa-dice-d6"></i> Aktueller Spieler: <strong>${escapeHtml(multiplayerScores[currentTurnPlayerId].name)}</strong></div>`;
+        }
         html += `<ul>`;
-        Object.values(multiplayerScores).forEach(p => {
-            html += `<li><strong>${escapeHtml(p.name)}</strong>: ${p.score} Pkt. (${p.correctGuesses || 0} erraten)</li>`;
-        });
+        for (let id of playerOrder) {
+            let p = multiplayerScores[id];
+            if (p) {
+                html += `<li><strong>${escapeHtml(p.name)}</strong>: ${p.score} Pkt. (${p.correctGuesses || 0} erraten)</li>`;
+            }
+        }
         html += `</ul>`;
         scoreboardDiv.innerHTML = html;
+        if (scoreboardWaiting) {
+            let htmlWait = `<h4><i class="fas fa-chart-simple"></i> Live-Punktestand</h4>`;
+            if (currentTurnPlayerId && multiplayerScores[currentTurnPlayerId]) {
+                htmlWait += `<div class="current-player-indicator"><i class="fas fa-dice-d6"></i> Aktueller Spieler: <strong>${escapeHtml(multiplayerScores[currentTurnPlayerId].name)}</strong></div>`;
+            }
+            htmlWait += `<ul>`;
+            for (let id of playerOrder) {
+                let p = multiplayerScores[id];
+                if (p) {
+                    htmlWait += `<li><strong>${escapeHtml(p.name)}</strong>: ${p.score} Pkt. (${p.correctGuesses || 0} erraten)</li>`;
+                }
+            }
+            htmlWait += `</ul>`;
+            scoreboardWaiting.innerHTML = htmlWait;
+        }
         return;
     }
-    
     if (gameMode !== 'tournament' || players.length === 0) {
         scoreboardDiv.style.display = 'none';
         return;
@@ -366,7 +398,6 @@ function updateScannerPlayerDisplay() {
         }
         return;
     }
-    
     if (scannerPlayerNameSpan && scannerPlayerScoreSpan && players.length > 0 && currentPlayerIndex < players.length) {
         scannerPlayerNameSpan.innerText = players[currentPlayerIndex].name;
         scannerPlayerScoreSpan.innerText = players[currentPlayerIndex].totalScore;
@@ -385,7 +416,6 @@ function updateFilmPlayerDisplay() {
         }
         return;
     }
-    
     if (filmCurrentPlayerSpan && filmCurrentScoreSpan && players.length > 0 && currentPlayerIndex < players.length) {
         filmCurrentPlayerSpan.innerText = players[currentPlayerIndex].name;
         filmCurrentScoreSpan.innerText = players[currentPlayerIndex].totalScore;
@@ -394,40 +424,73 @@ function updateFilmPlayerDisplay() {
 
 // ======================== ANSICHTEN ========================
 function showModeSelection() {
-    modeSelectionSection.classList.remove('hidden');
-    playerSetupSection.classList.add('hidden');
-    scannerSection.classList.add('hidden');
-    filmSection.classList.add('hidden');
+    if (modeSelectionSection) modeSelectionSection.classList.remove('hidden');
+    if (playerSetupSection) playerSetupSection.classList.add('hidden');
+    if (scannerSection) scannerSection.classList.add('hidden');
+    if (filmSection) filmSection.classList.add('hidden');
+    if (waitingView) waitingView.classList.add('hidden');
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
     if (lobbySection) lobbySection.classList.add('hidden');
-    
-    // Multiplayer-Einstellungen zurücksetzen
+    if (spectatorView) spectatorView.classList.add('hidden');
+    if (waitTurnView) waitTurnView.classList.add('hidden');
     if (multiplayerSettingsDiv) multiplayerSettingsDiv.style.display = 'none';
     if (joinGamePanel) joinGamePanel.style.display = 'none';
 }
 
 function showPlayerSetup() {
-    modeSelectionSection.classList.add('hidden');
-    playerSetupSection.classList.remove('hidden');
-    scannerSection.classList.add('hidden');
-    filmSection.classList.add('hidden');
+    if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
+    if (playerSetupSection) playerSetupSection.classList.remove('hidden');
+    if (scannerSection) scannerSection.classList.add('hidden');
+    if (filmSection) filmSection.classList.add('hidden');
+    if (waitingView) waitingView.classList.add('hidden');
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
     if (lobbySection) lobbySection.classList.add('hidden');
+    if (spectatorView) spectatorView.classList.add('hidden');
+    if (waitTurnView) waitTurnView.classList.add('hidden');
 }
 
 async function showScanner() {
-    modeSelectionSection.classList.add('hidden');
-    playerSetupSection.classList.add('hidden');
-    scannerSection.classList.remove('hidden');
-    filmSection.classList.add('hidden');
+    if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
+    if (playerSetupSection) playerSetupSection.classList.add('hidden');
+    if (scannerSection) scannerSection.classList.remove('hidden');
+    if (filmSection) filmSection.classList.add('hidden');
+    if (waitingView) waitingView.classList.add('hidden');
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
     if (lobbySection) lobbySection.classList.add('hidden');
+    if (spectatorView) spectatorView.classList.add('hidden');
+    if (waitTurnView) waitTurnView.classList.add('hidden');
     updateScoreboard();
     updateScannerPlayerDisplay();
     await startScanner();
+}
+
+function showWaitingScreen(filmData) {
+    if (scannerSection) scannerSection.classList.add('hidden');
+    if (filmSection) filmSection.classList.add('hidden');
+    if (waitingView) waitingView.classList.remove('hidden');
+    updateScoreboard();
+    if (filmData && waitingFilmTitleSpan && waitingTrailerVideo && waitingTipDisplay) {
+        const title = getFilmTitle(filmData.film);
+        waitingFilmTitleSpan.innerText = title;
+        let trailerUrl = null;
+        const lang = filmData.language || app.currentLanguage;
+        if (lang === 'de' && filmData.film['App-Link_Video-1_DE']) {
+            trailerUrl = filmData.film['App-Link_Video-1_DE'];
+        } else if (filmData.film['App-Link_Video-1_EN']) {
+            trailerUrl = filmData.film['App-Link_Video-1_EN'];
+        }
+        waitingTrailerVideo.src = trailerUrl || '';
+        waitingTrailerVideo.load();
+        const facts = app.funFactsMap.get(filmData.film.Nr);
+        if (facts && facts.hinweise && facts.hinweise.length) {
+            waitingTipDisplay.innerHTML = `<i class="fas fa-lightbulb"></i> ${escapeHtml(facts.hinweise[0])}`;
+        } else {
+            waitingTipDisplay.innerHTML = '<i class="fas fa-info-circle"></i> Keine Tipps verfügbar.';
+        }
+    }
 }
 
 function showFilmView() {
@@ -435,13 +498,18 @@ function showFilmView() {
     if (playerSetupSection) playerSetupSection.classList.add('hidden');
     if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
     if (filmSection) filmSection.classList.remove('hidden');
+    if (waitingView) waitingView.classList.add('hidden');
     if (guessModal) guessModal.classList.add('hidden');
     if (roundModal) roundModal.classList.add('hidden');
     if (lobbySection) lobbySection.classList.add('hidden');
+    if (spectatorView) spectatorView.classList.add('hidden');
+    if (waitTurnView) waitTurnView.classList.add('hidden');
 
     if (filmTitleElement) filmTitleElement.innerText = '🎬 Film gescannt (geheim)';
-    document.getElementById('filmYear').innerHTML = '';
-    document.getElementById('filmDirector').innerHTML = '';
+    const filmYearSpanElem = document.getElementById('filmYear');
+    const filmDirectorSpanElem = document.getElementById('filmDirector');
+    if (filmYearSpanElem) filmYearSpanElem.innerHTML = '';
+    if (filmDirectorSpanElem) filmDirectorSpanElem.innerHTML = '';
     titleBonusUsed = false;
     directorBonusUsed = false;
     currentTipUsage = 0;
@@ -461,9 +529,7 @@ function showFilmView() {
         if (filmPlayerInfo) filmPlayerInfo.style.display = 'none';
         if (nextFilmBtn) {
             nextFilmBtn.style.display = 'inline-flex';
-            nextFilmBtn.onclick = () => {
-                showScanner();
-            };
+            nextFilmBtn.onclick = () => { showScanner(); };
         }
     } else {
         if (askGuessBtn) askGuessBtn.style.display = 'inline-flex';
@@ -477,44 +543,43 @@ async function startScanner() {
     if (app.scanner) {
         try { await stopScanner(); } catch(e) { console.warn('Stop vor Start fehlgeschlagen', e); }
     }
-
     if (scanFeedback) {
         scanFeedback.innerText = '⏳ Kamera wird gestartet...';
         scanFeedback.classList.remove('error');
     }
-
     try {
         const container = document.getElementById('scannerVideoContainer');
         if (container) container.innerHTML = '';
-
         app.scanner = new Html5Qrcode("scannerVideoContainer");
-
         const config = {
             fps: 15,
-            qrbox: { width: 300, height: 300 },
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                let size = Math.floor(minEdge * 0.8);
+                size = Math.min(500, Math.max(150, size));
+                return { width: size, height: size };
+            },
             aspectRatio: 1.0,
             disableFlip: false,
-            videoConstraints: {
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [0]
         };
-
-        await app.scanner.start(
-            { facingMode: "environment" },
-            config,
-            (decodedText) => {
-                console.log("✅ QR-Code erkannt:", decodedText);
-                handleQRScan({ data: decodedText });
-            },
-            (errorMessage) => {
-                if (errorMessage && !errorMessage.includes("NotFoundException")) {
-                    console.warn("Scan-Fehler:", errorMessage);
-                }
-            }
-        );
-
+        try {
+            await app.scanner.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => { handleQRScan({ data: decodedText }); },
+                (errorMessage) => { if (errorMessage && !errorMessage.includes("NotFoundException")) console.warn("Scan-Fehler:", errorMessage); }
+            );
+        } catch (envError) {
+            console.warn("Rückkamera fehlgeschlagen, versuche Frontkamera:", envError);
+            await app.scanner.start(
+                { facingMode: "user" },
+                config,
+                (decodedText) => { handleQRScan({ data: decodedText }); },
+                (errorMessage) => { if (errorMessage && !errorMessage.includes("NotFoundException")) console.warn("Scan-Fehler (Frontkamera):", errorMessage); }
+            );
+        }
         if (scanFeedback) {
             scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.';
             scanFeedback.classList.remove('error');
@@ -527,7 +592,6 @@ async function startScanner() {
         }
     }
 }
-
 async function stopScanner() {
     if (!app.scanner) return;
     try {
@@ -536,22 +600,19 @@ async function stopScanner() {
     } catch(e) { console.warn('Stop Fehler:', e); }
     app.scanner = null;
 }
-
 let lastScanTime = 0;
 async function handleQRScan(result) {
     if (!app.scanner || !scannerSection.classList.contains('hidden') === false) return;
-    
     const now = Date.now();
     if (now - lastScanTime < 500) return;
     lastScanTime = now;
-    
     const qrData = result.data;
     const filmId = extractFilmId(qrData);
     if (!filmId) {
         invalidCount++;
         if (invalidCount >= 3) {
             if (scanFeedback) {
-                scanFeedback.innerText = '❌ QR-Code nicht erkennbar. Bei roten/grünen Codes: Helligkeit erhöhen oder anderen Winkel versuchen.';
+                scanFeedback.innerText = '❌ QR-Code nicht erkennbar. Helligkeit erhöhen oder anderen Winkel versuchen.';
                 setTimeout(() => { 
                     if (scanFeedback && !scannerSection.classList.contains('hidden')) 
                         scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
@@ -569,9 +630,7 @@ async function handleQRScan(result) {
         }
         return;
     }
-    
     invalidCount = 0;
-    
     const foundFilm = app.films.find(f => f.Nr === filmId);
     if (!foundFilm) {
         if (scanFeedback) {
@@ -583,24 +642,25 @@ async function handleQRScan(result) {
         }
         return;
     }
-    
     app.currentFilm = foundFilm;
     await stopScanner();
     console.log('Film gefunden (Name geheim):', foundFilm['Titel Original']);
+    
+    if (gameMode === 'multiplayer' && isHost) {
+        currentFilmData = { film: foundFilm, language: app.currentLanguage };
+        broadcastFilmData(foundFilm);
+    }
     showFilmView();
 }
-
 function extractFilmId(qrData) { 
     let m = qrData.match(/id=(\d+)/); 
     return m ? m[1] : (qrData.match(/^(\d+)$/) || [])[1]; 
 }
-
 function getFilmTitle(film) {
     if (app.currentLanguage === 'de' && film['Titel Deutsch'] && film['Titel Deutsch'].trim()) 
         return film['Titel Deutsch'];
     return film['Titel Original'] || 'Unbekannt';
 }
-
 async function restartCamera() {
     if (scanFeedback) {
         scanFeedback.innerText = '⏳ Kamera wird neu gestartet...';
@@ -617,14 +677,12 @@ async function restartCamera() {
     }
 }
 
-// ======================== MULTIPLAYER LOBBY & SPIELSTART ========================
-
+// ======================== MULTIPLAYER KERNLOGIK (PeerJS) ========================
 function updateLobbyPlayerList() {
     if (!lobbyPlayersUl) return;
     lobbyPlayersUl.innerHTML = '';
     let count = 0;
     for (let [id, p] of Object.entries(multiplayerScores)) {
-        // Host selbst wird nicht in der Liste angezeigt
         if (id !== myPeerId) {
             count++;
             const li = document.createElement('li');
@@ -633,97 +691,70 @@ function updateLobbyPlayerList() {
         }
     }
     if (playerCountSpan) playerCountSpan.innerText = count;
-    // Start-Button aktivieren, sobald mindestens ein Spieler da ist
     if (startMultiplayerGameBtn) startMultiplayerGameBtn.disabled = (count === 0);
 }
-
 function broadcastLobbyState() {
-    const message = { type: 'lobby_update', players: multiplayerScores };
-    connections.forEach(conn => {
-        try { conn.send(message); } catch(e) {}
-    });
+    const message = { type: 'lobby_update', players: multiplayerScores, order: playerOrder };
+    connections.forEach(conn => { try { conn.send(message); } catch(e) {} });
     updateLobbyPlayerList();
 }
-
-function showWaitingForHost() {
-    // Für Spieler: Warte-Bildschirm anzeigen
-    let waitingDiv = document.getElementById('waitingForHost');
-    if (!waitingDiv) {
-        waitingDiv = document.createElement('div');
-        waitingDiv.id = 'waitingForHost';
-        waitingDiv.className = 'setup-section';
-        waitingDiv.innerHTML = `<div class="glass-card"><h2><i class="fas fa-hourglass-half"></i> Warte auf Spielstart</h2><p>Der Host startet das Spiel gleich...</p><button id="cancelWaitBtn" class="secondary-btn">Abbrechen</button></div>`;
-        document.querySelector('.app-main').appendChild(waitingDiv);
-        document.getElementById('cancelWaitBtn')?.addEventListener('click', () => backToMode());
-    }
-    waitingDiv.classList.remove('hidden');
-    // Andere Sektionen ausblenden
-    modeSelectionSection.classList.add('hidden');
-    playerSetupSection.classList.add('hidden');
-    scannerSection.classList.add('hidden');
-    filmSection.classList.add('hidden');
-    if (lobbySection) lobbySection.classList.add('hidden');
+function broadcastFilmData(film) {
+    const message = { type: 'film_data', film: film, language: app.currentLanguage };
+    connections.forEach(conn => { try { conn.send(message); } catch(e) {} });
 }
-
+function broadcastTurnChange() {
+    const message = { type: 'turn_change', currentTurnPlayerId: currentTurnPlayerId };
+    connections.forEach(conn => { try { conn.send(message); } catch(e) {} });
+    updateScoreboard();
+    if (currentTurnPlayerId === myPeerId) {
+        if (!app.currentFilm) showScanner();
+        else showFilmView();
+    } else {
+        if (currentFilmData) showWaitingScreen(currentFilmData);
+        else {
+            if (waitingView) waitingView.classList.remove('hidden');
+            if (scannerSection) scannerSection.classList.add('hidden');
+            if (filmSection) filmSection.classList.add('hidden');
+            updateScoreboard();
+        }
+    }
+}
+function broadcastScores() {
+    const message = { type: 'scoreUpdate', scores: multiplayerScores, order: playerOrder, currentTurn: currentTurnPlayerId };
+    connections.forEach(conn => { try { conn.send(message); } catch(e) {} });
+    updateScoreboard();
+    updateScannerPlayerDisplay();
+}
 function startMultiplayerGame() {
-    // Host startet das Spiel
+    playerOrder = [myPeerId];
+    for (let id of Object.keys(multiplayerScores)) {
+        if (id !== myPeerId) playerOrder.push(id);
+    }
+    currentTurnPlayerId = myPeerId;
+    broadcastLobbyState();
+    broadcastTurnChange();
     if (lobbySection) lobbySection.classList.add('hidden');
-    // Allen verbundenen Spielern Bescheid geben
-    connections.forEach(conn => {
-        try { conn.send({ type: 'start_game' }); } catch(e) {}
-    });
-    // Scanner anzeigen
     showScanner();
 }
-
 async function initMultiplayerAsHost() {
     isHost = true;
     gameMode = 'multiplayer';
-    
-    // Ziele aus den UI-Elementen lesen (falls verfügbar)
-    const targetTypeRadios = document.querySelectorAll('input[name="targetTypeSelect"]');
-    let selectedTargetType = 'points';
-    for (let radio of targetTypeRadios) {
-        if (radio.checked) selectedTargetType = radio.value;
-    }
-    let targetValue;
-    if (selectedTargetType === 'points') {
-        targetValue = parseInt(targetScoreSelect?.value) || 30;
-    } else {
-        targetValue = parseInt(guessTargetSelect?.value) || 5;
-    }
+    const selectedTargetType = document.querySelector('input[name="targetTypeSelect"]:checked')?.value || 'points';
     multiplayerTargetType = selectedTargetType;
-    multiplayerTargetValue = targetValue;
-    
-    // Zufälligen Raumcode (6 Zeichen)
+    if (selectedTargetType === 'points') multiplayerTargetValue = parseInt(targetScoreSelect?.value) || 30;
+    else multiplayerTargetValue = parseInt(guessTargetSelect?.value) || 5;
     roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
-    // Lobby-Bereich anzeigen
-    modeSelectionSection.classList.add('hidden');
+    if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
     if (lobbySection) lobbySection.classList.remove('hidden');
     if (lobbyRoomCodeSpan) lobbyRoomCodeSpan.innerText = roomCode;
-    
-    // QR-Code generieren (mit QRCode.js)
     if (lobbyQrCodeDiv) lobbyQrCodeDiv.innerHTML = '';
     const joinUrl = window.location.href.split('?')[0] + '?join=' + roomCode;
     if (typeof QRCode !== 'undefined' && lobbyQrCodeDiv) {
-        new QRCode(lobbyQrCodeDiv, {
-            text: joinUrl,
-            width: 180,
-            height: 180,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-    } else if (lobbyQrCodeDiv) {
-        lobbyQrCodeDiv.innerHTML = '<p>QR-Code konnte nicht geladen werden.</p>';
+        new QRCode(lobbyQrCodeDiv, { text: joinUrl, width: 180, height: 180, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
     }
     const joinLink = document.getElementById('lobbyJoinLink');
     if (joinLink) joinLink.href = joinUrl;
-    
-    // Peer-Server starten
     peer = new Peer(roomCode);
-    
     peer.on('open', (id) => {
         myPeerId = id;
         console.log('Host Peer ID:', id);
@@ -732,113 +763,108 @@ async function initMultiplayerAsHost() {
         multiplayerScores[myPeerId] = { name: playerName, score: 0, correctGuesses: 0 };
         updateLobbyPlayerList();
     });
-    
     peer.on('connection', (conn) => {
-        console.log('Neuer Spieler verbunden:', conn.peer);
         connections.push(conn);
-        
-        conn.on('data', (data) => {
-            handleMultiplayerMessage(conn.peer, data);
-        });
-        
+        conn.on('data', (data) => handleMultiplayerMessage(conn.peer, data));
         conn.on('close', () => {
-            console.log('Spieler getrennt:', conn.peer);
             connections = connections.filter(c => c.peer !== conn.peer);
             delete multiplayerScores[conn.peer];
+            playerOrder = playerOrder.filter(id => id !== conn.peer);
+            if (currentTurnPlayerId === conn.peer) {
+                let currentIndex = playerOrder.indexOf(currentTurnPlayerId);
+                if (currentIndex !== -1) {
+                    let nextIndex = (currentIndex + 1) % playerOrder.length;
+                    currentTurnPlayerId = playerOrder[nextIndex];
+                    broadcastTurnChange();
+                }
+            }
             updateLobbyPlayerList();
             broadcastScores();
         });
-        
-        // Lobby-Info an den neuen Spieler senden
-        conn.send({ 
-            type: 'lobby_init', 
-            players: multiplayerScores, 
-            hostId: myPeerId,
-            targetType: multiplayerTargetType,
-            targetValue: multiplayerTargetValue
-        });
+        conn.send({ type: 'lobby_init', players: multiplayerScores, hostId: myPeerId, targetType: multiplayerTargetType, targetValue: multiplayerTargetValue, order: playerOrder, currentTurn: currentTurnPlayerId, currentFilm: currentFilmData ? currentFilmData.film : null });
     });
-    
-    peer.on('error', (err) => {
-        console.error('Peer Fehler:', err);
-        alert('Fehler beim Erstellen des Spielraums: ' + err);
-        backToMode();
-    });
-    
+    peer.on('error', (err) => { console.error('Peer Fehler:', err); alert('Fehler beim Erstellen des Spielraums: ' + err); backToMode(); });
     updateLobbyPlayerList();
     if (startMultiplayerGameBtn) startMultiplayerGameBtn.disabled = true;
 }
-
 async function initMultiplayerAsJoiner() {
     const code = roomCodeInput?.value.trim().toUpperCase();
-    if (!code) {
-        alert('Bitte Raumcode eingeben');
-        return;
-    }
+    if (!code) { alert('Bitte Raumcode eingeben'); return; }
     roomCode = code;
     isHost = false;
     gameMode = 'multiplayer';
-    
     const randomId = Math.random().toString(36).substring(2, 10);
     peer = new Peer(randomId);
-    
     peer.on('open', (id) => {
         myPeerId = id;
-        console.log('Joiner Peer ID:', id);
         playerName = prompt('Dein Name:', 'Spieler');
         if (!playerName) playerName = 'Spieler';
-        
         const conn = peer.connect(roomCode);
         conn.on('open', () => {
-            console.log('Verbunden mit Host');
             connections.push(conn);
             conn.send({ type: 'join', playerId: myPeerId, name: playerName });
         });
-        
-        conn.on('data', (data) => {
-            handleMultiplayerMessage(conn.peer, data);
-        });
-        
-        conn.on('close', () => {
-            console.log('Verbindung zum Host getrennt');
-            alert('Verbindung zum Host verloren');
-            backToMode();
-        });
+        conn.on('data', (data) => handleMultiplayerMessage(conn.peer, data));
+        conn.on('close', () => { alert('Verbindung zum Host verloren'); backToMode(); });
     });
-    
-    peer.on('error', (err) => {
-        console.error('Peer Fehler:', err);
-        alert('Beitreten fehlgeschlagen: ' + err);
-        backToMode();
-    });
-    
-    // Warte-Bildschirm anzeigen, bis Host startet
-    showWaitingForHost();
+    peer.on('error', (err) => { console.error('Peer Fehler:', err); alert('Beitreten fehlgeschlagen: ' + err); backToMode(); });
+    if (waitingView) waitingView.classList.remove('hidden');
+    if (scannerSection) scannerSection.classList.add('hidden');
+    if (filmSection) filmSection.classList.add('hidden');
+    if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
+    if (playerSetupSection) playerSetupSection.classList.add('hidden');
 }
-
 function handleMultiplayerMessage(senderId, data) {
     if (data.type === 'lobby_init') {
-        // Spieler erhält Lobby-Info vom Host
         multiplayerScores = data.players;
         multiplayerTargetType = data.targetType;
         multiplayerTargetValue = data.targetValue;
+        playerOrder = data.order || [];
+        currentTurnPlayerId = data.currentTurn;
+        if (data.currentFilm) {
+            currentFilmData = { film: data.currentFilm, language: 'de' };
+            if (currentTurnPlayerId !== myPeerId) showWaitingScreen(currentFilmData);
+        }
         updateScoreboard();
         updateScannerPlayerDisplay();
-        // Spieler bleibt im Warte-Bildschirm
+        if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
     } else if (data.type === 'join') {
-        // Spieler tritt bei (nur Host)
         multiplayerScores[data.playerId] = { name: data.name, score: 0, correctGuesses: 0 };
-        updateLobbyPlayerList();
-        broadcastLobbyState();
+        if (isHost) {
+            if (!playerOrder.includes(data.playerId)) playerOrder.push(data.playerId);
+            updateLobbyPlayerList();
+            broadcastLobbyState();
+        } else {
+            updateScoreboard();
+        }
     } else if (data.type === 'lobby_update') {
-        // Host aktualisiert Spielerliste
         multiplayerScores = data.players;
+        playerOrder = data.order || [];
         updateLobbyPlayerList();
+        updateScoreboard();
     } else if (data.type === 'start_game') {
-        // Host startet Spiel – Spieler verlässt Warte-Bildschirm
-        const waitingDiv = document.getElementById('waitingForHost');
-        if (waitingDiv) waitingDiv.classList.add('hidden');
-        showScanner();
+        if (waitingView) waitingView.classList.add('hidden');
+        if (currentTurnPlayerId === myPeerId) showScanner();
+        else showWaitingScreen(currentFilmData);
+        updateScoreboard();
+        if (modeSelectionSection) modeSelectionSection.classList.add('hidden');
+    } else if (data.type === 'film_data') {
+        currentFilmData = { film: data.film, language: data.language || 'de' };
+        if (currentTurnPlayerId !== myPeerId) showWaitingScreen(currentFilmData);
+    } else if (data.type === 'turn_change') {
+        currentTurnPlayerId = data.currentTurnPlayerId;
+        if (currentTurnPlayerId === myPeerId) {
+            if (app.currentFilm) showFilmView();
+            else showScanner();
+        } else {
+            if (currentFilmData) showWaitingScreen(currentFilmData);
+            else {
+                if (waitingView) waitingView.classList.remove('hidden');
+                if (scannerSection) scannerSection.classList.add('hidden');
+                if (filmSection) filmSection.classList.add('hidden');
+            }
+        }
+        updateScoreboard();
     } else if (data.type === 'scoreUpdate') {
         if (isHost && multiplayerScores[senderId]) {
             multiplayerScores[senderId].score = data.score;
@@ -847,70 +873,66 @@ function handleMultiplayerMessage(senderId, data) {
             broadcastScores();
         } else if (!isHost) {
             multiplayerScores = data.scores;
+            playerOrder = data.order || playerOrder;
+            currentTurnPlayerId = data.currentTurn;
             updateScoreboard();
             updateScannerPlayerDisplay();
         }
+    } else if (data.type === 'round_complete') {
+        if (isHost) {
+            let currentIndex = playerOrder.indexOf(currentTurnPlayerId);
+            let nextIndex = (currentIndex + 1) % playerOrder.length;
+            currentTurnPlayerId = playerOrder[nextIndex];
+            broadcastTurnChange();
+            broadcastScores();
+            app.currentFilm = null;
+            currentFilmData = null;
+            if (currentTurnPlayerId === myPeerId) showScanner();
+            else showWaitingScreen(null);
+        } else {
+            // Client wartet auf turn_change
+        }
     }
 }
-
-function broadcastScores() {
-    const message = { type: 'scoreUpdate', scores: multiplayerScores };
-    connections.forEach(conn => {
-        try { conn.send(message); } catch(e) { console.warn('Send fehlgeschlagen', e); }
-    });
-    updateScoreboard();
-    updateScannerPlayerDisplay();
-}
-
 function updateMultiplayerScore(peerId, newScore, newCorrectGuesses) {
     if (multiplayerScores[peerId]) {
         multiplayerScores[peerId].score = newScore;
         multiplayerScores[peerId].correctGuesses = newCorrectGuesses;
         updateScoreboard();
-        if (isHost) {
-            broadcastScores();
-        } else {
+        if (isHost) broadcastScores();
+        else {
             const conn = connections[0];
-            if (conn) {
-                conn.send({ type: 'scoreUpdate', score: newScore, correctGuesses: newCorrectGuesses });
-            }
+            if (conn) conn.send({ type: 'scoreUpdate', score: newScore, correctGuesses: newCorrectGuesses });
         }
     }
 }
-
 function backToMode() {
-    if (peer) {
-        try { peer.destroy(); } catch(e) {}
-        peer = null;
-    }
-    // Lobby-UI verstecken
+    if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
     if (lobbySection) lobbySection.classList.add('hidden');
-    const waitingDiv = document.getElementById('waitingForHost');
-    if (waitingDiv) waitingDiv.classList.add('hidden');
+    if (waitingView) waitingView.classList.add('hidden');
+    if (spectatorView) spectatorView.classList.add('hidden');
+    if (waitTurnView) waitTurnView.classList.add('hidden');
     clearAllGameData();
     showModeSelection();
 }
 
-// ======================== GUESS MODAL ========================
+// ======================== GUESS MODAL (Nur Turnier) ========================
 function openGuessModal() {
+    if (gameMode !== 'tournament') return;
     if (!app.currentFilm) return;
-    guessFilmTitleSpan.innerText = getFilmTitle(app.currentFilm);
-    if (gameMode === 'multiplayer') {
-        const myData = multiplayerScores[myPeerId];
-        currentPlayerNameSpan.innerText = myData ? myData.name : (playerName || '?');
-    } else if (players.length > 0 && currentPlayerIndex < players.length) {
+    if (guessFilmTitleSpan) guessFilmTitleSpan.innerText = getFilmTitle(app.currentFilm);
+    if (currentPlayerNameSpan && players.length > 0 && currentPlayerIndex < players.length) {
         currentPlayerNameSpan.innerText = players[currentPlayerIndex].name;
     } else {
         currentPlayerNameSpan.innerText = '?';
     }
-    guessModal.classList.remove('hidden');
+    if (guessModal) guessModal.classList.remove('hidden');
 }
-function closeGuessModal() { guessModal.classList.add('hidden'); }
+function closeGuessModal() { if (guessModal) guessModal.classList.add('hidden'); }
 
-// ======================== PUNKTEVERGABE ========================
+// ======================== PUNKTEVERGABE (ROUND SUMMARY) Nur Turnier ========================
 function openRoundSummary() {
     if (gameMode === 'multiplayer') {
-        // Im Multiplayer: Punkte direkt zum eigenen Score addieren
         if (!app.currentFilm) return;
         const roundTotal = roundBasePoints - currentTipUsage;
         const myData = multiplayerScores[myPeerId];
@@ -920,11 +942,28 @@ function openRoundSummary() {
             updateMultiplayerScore(myPeerId, newScore, newCorrect);
         }
         closeRoundSummary();
-        showScanner();
+        if (isHost) {
+            connections.forEach(conn => { try { conn.send({ type: 'round_complete' }); } catch(e) {} });
+            let currentIndex = playerOrder.indexOf(currentTurnPlayerId);
+            let nextIndex = (currentIndex + 1) % playerOrder.length;
+            currentTurnPlayerId = playerOrder[nextIndex];
+            broadcastTurnChange();
+            broadcastScores();
+            app.currentFilm = null;
+            currentFilmData = null;
+            if (currentTurnPlayerId === myPeerId) showScanner();
+            else showWaitingScreen(null);
+        } else {
+            const conn = connections[0];
+            if (conn) conn.send({ type: 'round_complete' });
+            if (waitingView) waitingView.classList.remove('hidden');
+            if (scannerSection) scannerSection.classList.add('hidden');
+            if (filmSection) filmSection.classList.add('hidden');
+        }
         return;
     }
-    
-    // Turnier-Modus Einzel
+    if (gameMode !== 'tournament') return;
+    if (!app.currentFilm) return;
     tempTitleBonus = 0;
     tempDirectorBonus = 0;
     titleBonusUsed = false;
@@ -1002,7 +1041,7 @@ function showNextTip() {
 }
 function closeTipOverlay() { if (tipOverlay) tipOverlay.classList.add('hidden'); }
 
-// ======================== SPIELENDE LOGIK ========================
+// ======================== SPIELENDE LOGIK (Turnier) ========================
 function checkWinConditionAndSetEndFlag(currentPlayer) {
     if (endAfterCurrentRound) return;
     if (targetType === 'points') {
@@ -1017,20 +1056,19 @@ function checkWinConditionAndSetEndFlag(currentPlayer) {
         }
     }
 }
-
 function endGameAndShowWinner(isAutoEnd = false) {
     if (gameMode === 'multiplayer') {
         let maxScore = -1, winners = [];
-        Object.values(multiplayerScores).forEach(p => {
-            if (p.score > maxScore) { maxScore = p.score; winners = [p.name]; }
-            else if (p.score === maxScore) winners.push(p.name);
-        });
+        for (let id of playerOrder) {
+            let p = multiplayerScores[id];
+            if (p && p.score > maxScore) { maxScore = p.score; winners = [p.name]; }
+            else if (p && p.score === maxScore) winners.push(p.name);
+        }
         if (winners.length === 1) alert(`🏆 SIEGER: ${winners[0]} mit ${maxScore} Punkten! 🏆`);
         else alert(`🏆 Unentschieden zwischen: ${winners.join(', ')} mit ${maxScore} Punkten. 🏆`);
         backToMode();
         return;
     }
-    
     if (gameMode !== 'tournament' || players.length === 0) {
         alert('Kein aktives Turnier.');
         return;
@@ -1042,12 +1080,11 @@ function endGameAndShowWinner(isAutoEnd = false) {
     });
     if (winners.length === 1) alert(`🏆 SIEGER: ${winners[0]} mit ${maxScore} Punkten! 🏆`);
     else alert(`🏆 Unentschieden zwischen: ${winners.join(', ')} mit ${maxScore} Punkten. 🏆`);
-    
     clearAllGameData();
     showModeSelection();
 }
 
-// ======================== BUTTON-HANDLER (Punkte-Modal Einzel) ========================
+// ======================== BUTTON-HANDLER ========================
 function initRoundSummaryHandlers() {
     if (addTitlePointsBtn) {
         addTitlePointsBtn.onclick = () => {
@@ -1123,8 +1160,6 @@ function initRoundSummaryHandlers() {
         };
     }
 }
-
-// ======================== GUESS HANDLER ========================
 function initGuessHandlers() {
     if (guessYesBtn) {
         guessYesBtn.onclick = () => {
@@ -1144,19 +1179,16 @@ function initGuessHandlers() {
         };
     }
 }
-
-// ======================== MODUS-AUSWAHL HANDLER ========================
 function setupModeSelection() {
     const updateSettings = () => {
-        const selected = document.querySelector('input[name="gameModeSelect"]:checked').value;
+        const selected = document.querySelector('input[name="gameModeSelect"]:checked')?.value;
         if (tournamentSettingsSelectDiv) tournamentSettingsSelectDiv.style.display = (selected === 'tournament') ? 'block' : 'none';
         if (multiplayerSettingsDiv) multiplayerSettingsDiv.style.display = (selected === 'multiplayer') ? 'block' : 'none';
     };
     modeRadiosSelect.forEach(radio => radio.addEventListener('change', updateSettings));
     updateSettings();
-    
     const updateTargetTypeVisibility = () => {
-        const targetTypeVal = document.querySelector('input[name="targetTypeSelect"]:checked').value;
+        const targetTypeVal = document.querySelector('input[name="targetTypeSelect"]:checked')?.value;
         if (targetTypeVal === 'points') {
             if (pointsTargetGroupSelect) pointsTargetGroupSelect.style.display = 'block';
             if (guessesTargetGroupSelect) guessesTargetGroupSelect.style.display = 'none';
@@ -1167,34 +1199,16 @@ function setupModeSelection() {
     };
     targetTypeRadiosSelect.forEach(radio => radio.addEventListener('change', updateTargetTypeVisibility));
     updateTargetTypeVisibility();
-    
-    // Multiplayer Buttons
-    if (hostGameBtn) {
-        hostGameBtn.onclick = () => {
-            initMultiplayerAsHost();
-        };
-    }
-    if (joinGameBtn) {
-        joinGameBtn.onclick = () => {
-            if (joinGamePanel) joinGamePanel.style.display = 'block';
-        };
-    }
-    if (confirmJoinBtn) {
-        confirmJoinBtn.onclick = async () => {
-            await initMultiplayerAsJoiner();
-        };
-    }
-    
+    if (hostGameBtn) hostGameBtn.onclick = () => { initMultiplayerAsHost(); };
+    if (joinGameBtn) joinGameBtn.onclick = () => { if (joinGamePanel) joinGamePanel.style.display = 'block'; };
+    if (confirmJoinBtn) confirmJoinBtn.onclick = async () => { await initMultiplayerAsJoiner(); };
     if (confirmModeBtn) {
         confirmModeBtn.onclick = () => {
-            const selectedMode = document.querySelector('input[name="gameModeSelect"]:checked').value;
-            if (selectedMode === 'multiplayer') {
-                // Multiplayer wird separat über Buttons gestartet
-                return;
-            }
+            const selectedMode = document.querySelector('input[name="gameModeSelect"]:checked')?.value;
+            if (selectedMode === 'multiplayer') return;
             gameMode = selectedMode;
             if (gameMode === 'tournament') {
-                targetType = document.querySelector('input[name="targetTypeSelect"]:checked').value;
+                targetType = document.querySelector('input[name="targetTypeSelect"]:checked')?.value || 'points';
                 targetScore = parseInt(targetScoreSelect?.value) || 30;
                 guessTarget = parseInt(guessTargetSelect?.value) || 5;
                 players = [];
@@ -1208,8 +1222,6 @@ function setupModeSelection() {
         };
     }
 }
-
-// ======================== EVENT LISTENER ========================
 function setupEventListeners() {
     initGuessHandlers();
     initRoundSummaryHandlers();
@@ -1234,14 +1246,9 @@ function setupEventListeners() {
     });
     if (backToSetupFromScannerBtn) backToSetupFromScannerBtn.addEventListener('click', async () => {
         await stopScanner();
-        if (gameMode === 'tournament') {
-            showPlayerSetup();
-        } else if (gameMode === 'multiplayer') {
-            backToMode();
-        } else {
-            clearAllGameData();
-            showModeSelection();
-        }
+        if (gameMode === 'tournament') showPlayerSetup();
+        else if (gameMode === 'multiplayer') backToMode();
+        else { clearAllGameData(); showModeSelection(); }
     });
     if (endGameBtn) endGameBtn.addEventListener('click', () => endGameAndShowWinner(false));
     if (askGuessBtn) askGuessBtn.addEventListener('click', openGuessModal);
@@ -1256,23 +1263,15 @@ function setupEventListeners() {
     if (closeTipOverlayBtn) closeTipOverlayBtn.addEventListener('click', closeTipOverlay);
     if (tipOverlayCloseBtn) tipOverlayCloseBtn.addEventListener('click', closeTipOverlay);
     if (trailerVideo) trailerVideo.addEventListener('ended', () => setTimeout(nextTrailer, 1000));
+    if (startMultiplayerGameBtn) startMultiplayerGameBtn.addEventListener('click', () => {
+        const playerCount = Object.keys(multiplayerScores).filter(id => id !== myPeerId).length;
+        if (playerCount === 0) { alert('Warte auf Spieler...'); return; }
+        startMultiplayerGame();
+    });
+    if (backToModeFromLobbyBtn) backToModeFromLobbyBtn.addEventListener('click', () => backToMode());
+    if (cancelWaitBtn) cancelWaitBtn.addEventListener('click', () => backToMode());
     
-    // Start-Button in der Lobby
-    if (startMultiplayerGameBtn) {
-        startMultiplayerGameBtn.addEventListener('click', () => {
-            const playerCount = Object.keys(multiplayerScores).filter(id => id !== myPeerId).length;
-            if (playerCount === 0) {
-                alert('Warte auf Spieler...');
-                return;
-            }
-            startMultiplayerGame();
-        });
-    }
-    if (backToModeFromLobbyBtn) {
-        backToModeFromLobbyBtn.addEventListener('click', () => backToMode());
-    }
-    
-    // Datei-Upload für QR-Code (Workaround)
+    // Datei-Upload Workaround für Kamera-Probleme
     const uploadBtn = document.createElement('button');
     uploadBtn.textContent = '📁 QR-Code aus Bild laden';
     uploadBtn.className = 'secondary-btn';
@@ -1295,13 +1294,8 @@ function setupEventListeners() {
             try {
                 const decodedText = await tempScanner.scanFile(file, false);
                 handleQRScan({ data: decodedText });
-            } catch (err) {
-                alert("QR-Code in Datei nicht erkennbar: " + err);
-            } finally {
-                tempScanner.clear();
-                startScanner();
-                fileInput.value = '';
-            }
+            } catch (err) { alert("QR-Code in Datei nicht erkennbar: " + err); }
+            finally { tempScanner.clear(); startScanner(); fileInput.value = ''; }
         });
     }
 }

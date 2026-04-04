@@ -919,3 +919,37 @@ body {
     max-width: 400px;
     margin: 0 auto;
 }
+
+/* Neue Styles für Multiplayer-Ansichten */
+#spectatorView, #waitTurnView {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+#spectatorContent p {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+#spectatorNoFilm {
+    margin: 1rem 0;
+    color: var(--warning);
+}
+
+#joinRoomInput {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+#joinRoomInput input {
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 40px;
+    padding: 0.5rem 1rem;
+    color: white;
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}
