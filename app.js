@@ -420,7 +420,13 @@ async function startScanner() {
         // Einfache Konfiguration ohne spezielle videoConstraints
         const config = {
             fps: 15,
-            qrbox: { width: 300, height: 300 },
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                let size = Math.floor(minEdge * 0.8);
+                // Mindestgröße 150px, Maximalgröße 500px (optional)
+                size = Math.min(500, Math.max(150, size));
+                return { width: size, height: size };
+            },
             aspectRatio: 1.0,
             disableFlip: false,
             rememberLastUsedCamera: true,
