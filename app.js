@@ -7,6 +7,7 @@
  * - Fehlerhafte QR-Codes stoppen die Kamera nicht
  * - Kamera-Fehlerbehandlung mit Neuversuch
  * - Filmname wird NICHT vor dem Erraten angezeigt (in beiden Modi)
+ * - Verbesserte QR-Code-Erkennung: höhere Auflösung, inversionMode 'both'
  */
 
 // ======================== GLOBALE VARIABLEN ========================
@@ -394,7 +395,7 @@ function showFilmView() {
     }
 }
 
-// ======================== KAMERA ========================
+// ======================== KAMERA (verbesserte QR-Erkennung) ========================
 async function startScanner() {
     if (app.scanner) {
         try { await stopScanner(); } catch(e) { console.warn('Stop vor Start fehlgeschlagen', e); }
@@ -405,15 +406,25 @@ async function startScanner() {
     scanFeedback.classList.remove('error');
     
     try {
+        // Optimierte Konfiguration für bessere QR-Code-Erkennung:
+        // - höhere Auflösung (ideal 1920x1080)
+        // - inversionMode 'both' erkennt helle und dunkle Codes
+        // - erhöhte maxScansPerSecond für flüssigeres Scannen
         app.scanner = new QrScanner(
             scannerVideo,
             handleQRScan,
             {
                 preferredCamera: 'environment',
-                maxScansPerSecond: 5,
+                maxScansPerSecond: 10,
                 highlightScanRegion: false,
                 highlightCodeOutline: false,
-                returnDetailedScanResult: true
+                returnDetailedScanResult: true,
+                inversionMode: 'both',   // wichtig für dunkle Hintergründe
+                videoConstraints: {
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    facingMode: 'environment'
+                }
             }
         );
         await app.scanner.start();
@@ -440,15 +451,25 @@ async function stopScanner() {
     app.scanner = null;
 }
 
+// Verhindert doppelte Scans in kurzer Zeit (zusätzlich zu maxScansPerSecond)
+let lastScanTime = 0;
 async function handleQRScan(result) {
     if (!app.scanner || !scannerSection.classList.contains('hidden') === false) return;
+    
+    // Debounce: ignoriere Scans, die schneller als 500ms nach dem letzten kommen
+    const now = Date.now();
+    if (now - lastScanTime < 500) return;
+    lastScanTime = now;
     
     const qrData = result.data;
     const filmId = extractFilmId(qrData);
     if (!filmId) {
         if (scanFeedback) {
             scanFeedback.innerText = '❌ Ungültiger QR-Code – bitte Filmkarte scannen';
-            setTimeout(() => { if (scanFeedback && !scannerSection.classList.contains('hidden')) scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; }, 2000);
+            setTimeout(() => { 
+                if (scanFeedback && !scannerSection.classList.contains('hidden')) 
+                    scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
+            }, 2000);
         }
         return;
     }
@@ -456,7 +477,10 @@ async function handleQRScan(result) {
     if (!foundFilm) {
         if (scanFeedback) {
             scanFeedback.innerText = `❌ Film #${filmId} nicht in Datenbank`;
-            setTimeout(() => { if (scanFeedback && !scannerSection.classList.contains('hidden')) scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; }, 2000);
+            setTimeout(() => { 
+                if (scanFeedback && !scannerSection.classList.contains('hidden')) 
+                    scanFeedback.innerText = '✅ Kamera aktiv. Scanne QR-Code.'; 
+            }, 2000);
         }
         return;
     }
@@ -493,7 +517,6 @@ async function restartCamera() {
 function openGuessModal() {
     if (gameMode !== 'tournament') return;
     if (!app.currentFilm) return;
-    // HIER wird der echte Filmname erstmals angezeigt
     guessFilmTitleSpan.innerText = getFilmTitle(app.currentFilm);
     if (players.length > 0 && currentPlayerIndex < players.length) {
         currentPlayerNameSpan.innerText = players[currentPlayerIndex].name;
