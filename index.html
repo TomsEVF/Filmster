@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Filmster – Multiplayer</title>
+    <title>Filmster – Multiplayer Edition</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0b1120">
@@ -12,138 +12,106 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <!-- PeerJS für Multiplayer -->
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- QRCode.js für QR-Code-Generierung in der Lobby -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script>
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBR-giydaf3oMhU41G7nLj6Z_rVymXN58Q",
+            authDomain: "filmster-multiplayer-d3af9.firebaseapp.com",
+            databaseURL: "https://filmster-multiplayer-d3af9-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "filmster-multiplayer-d3af9",
+            storageBucket: "filmster-multiplayer-d3af9.firebasestorage.app",
+            messagingSenderId: "577020151760",
+            appId: "1:577020151760:web:9b9359fade52dc16ed1bd5"
+        };
+    </script>
 </head>
 <body>
 
 <div class="app-container">
     <header class="app-header">
         <div class="logo"><i class="fas fa-clapperboard"></i><h1>Filmster</h1></div>
-        <p class="tagline">Eratet die Filme – zusammen im Raum</p>
+        <p class="tagline">Eratte die Filme – synchronisiert mit Freunden</p>
     </header>
 
     <main class="app-main">
-        <!-- Modus-Auswahl (Einzelspieler / Multiplayer) -->
+        <!-- MODUS-AUSWAHL -->
         <div id="modeSelectionSection" class="setup-section">
             <div class="glass-card">
                 <h2><i class="fas fa-gamepad"></i> Spielmodus wählen</h2>
                 <div class="mode-selection">
-                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="normal" checked> <span>🎬 Manuelle Punkte (Einzelgerät)</span></label>
-                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="tournament"> <span>🎬 Automatische Punkte (Einzelgerät)</span></label>
-                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="multiplayer"> <span>🌐 Multiplayer (mehrere Geräte)</span></label>
-                </div>
-                <div id="tournamentSettingsSelect" style="display: none;">
-                    <div class="target-type-selection">
-                        <label class="target-option"><input type="radio" name="targetTypeSelect" value="points" checked> <span>🎯 Punkteziel</span></label> 
-                        <label class="target-option"><input type="radio" name="targetTypeSelect" value="guesses"> <span>✅ Richtig‑erraten‑Ziel</span></label>
-                    </div>
-                    <div class="target-input-group">
-                        <div id="pointsTargetGroupSelect">
-                            <label for="targetScoreSelect">Punkteziel:</label>
-                            <input type="number" id="targetScoreSelect" value="30" min="5" max="200" step="5">
-                        </div>
-                        <div id="guessesTargetGroupSelect" style="display: none;">
-                            <label for="guessTargetSelect">Richtig erratene Filme:</label>
-                            <input type="number" id="guessTargetSelect" value="5" min="1" max="20" step="1">
-                        </div>
-                    </div>
-                </div>
-                <div id="multiplayerSettings" style="display: none;">
-                    <button id="hostGameBtn" class="primary-btn"><i class="fas fa-plus-circle"></i> Spiel erstellen (Host)</button>
-                    <button id="joinGameBtn" class="secondary-btn"><i class="fas fa-sign-in-alt"></i> Spiel beitreten</button>
-                    <div id="joinGamePanel" class="hidden" style="margin-top: 1rem;">
-                        <input type="text" id="roomCodeInput" placeholder="Raum-Code" maxlength="10" style="text-transform: uppercase;">
-                        <button id="confirmJoinBtn" class="primary-btn">Beitreten</button>
-                    </div>
+                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="local" checked> <span>📱 Lokal (Einzelgerät)</span></label>
+                    <label class="mode-option"><input type="radio" name="gameModeSelect" value="online"> <span>🌐 Online (Mehrere Geräte)</span></label>
                 </div>
                 <button id="confirmModeBtn" class="primary-btn" style="margin-top: 1rem;"><i class="fas fa-check"></i> Auswahl bestätigen</button>
             </div>
         </div>
 
-        <!-- Lobby (Host-Ansicht nach Erstellen) -->
-        <div id="lobbySection" class="setup-section hidden">
+        <!-- ONLINE: RAUM ERSTELLEN / BEITRETEN -->
+        <div id="roomSetupSection" class="setup-section hidden">
             <div class="glass-card">
-                <h2><i class="fas fa-users"></i> Wartelobby</h2>
-                <p>Raum-Code: <strong id="lobbyRoomCodeSpan">—</strong></p>
-                <div id="lobbyQrCode"></div>
-                <p>Teile diesen Link oder den Code mit deinen Freunden:</p>
-                <a id="lobbyJoinLink" href="#" target="_blank">Link kopieren</a>
-                <h3>Spieler in der Lobby</h3>
-                <ul id="lobbyPlayersUl"></ul>
-                <p>Anzahl Spieler: <span id="playerCount">0</span></p>
-                <button id="startMultiplayerGameBtn" class="primary-btn" disabled><i class="fas fa-play"></i> Spiel starten</button>
-                <button id="backToModeFromLobbyBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Zurück zur Modus-Auswahl</button>
+                <h2><i class="fas fa-users"></i> Online-Spiel</h2>
+                <div class="room-actions">
+                    <button id="createRoomBtn" class="primary-btn"><i class="fas fa-plus-circle"></i> Neuen Raum erstellen</button>
+                    <div class="join-room">
+                        <input type="text" id="joinRoomCode" placeholder="Raum-Code (6-stellig)" maxlength="6">
+                        <button id="joinRoomBtn" class="secondary-btn">Beitreten</button>
+                    </div>
+                </div>
+                <button id="backToModeFromRoomBtn" class="secondary-btn" style="margin-top: 1rem;"><i class="fas fa-arrow-left"></i> Zurück</button>
             </div>
         </div>
 
-        <!-- Warte-Bildschirm für beigetretene Spieler (vor Spielstart) -->
-        <div id="waitingView" class="hidden glass-card">
-            <h2><i class="fas fa-hourglass-half"></i> Warte auf Spielstart</h2>
-            <p>Der Host startet das Spiel gleich.</p>
-            <button id="cancelWaitBtn" class="secondary-btn">Abbrechen</button>
-        </div>
-
-        <!-- Spieler-Setup (für Einzelspieler-Turnier) -->
-        <div id="playerSetupSection" class="setup-section hidden">
+        <!-- ONLINE: WARTEZONE -->
+        <div id="waitingSection" class="setup-section hidden">
             <div class="glass-card">
-                <h2><i class="fas fa-users"></i> Spieler / Teams</h2>
-                <ul id="playerList" class="player-list"></ul>
-                <div class="add-player">
-                    <input type="text" id="newPlayerName" placeholder="Name" maxlength="30">
-                    <button id="addPlayerBtn" class="primary-btn">+ Hinzufügen</button>
+                <h2><i class="fas fa-hourglass-half"></i> Warte auf Spielstart</h2>
+                <div id="waitingRoomCodeDisplay" style="background: rgba(0,0,0,0.5); padding: 0.8rem; border-radius: 60px; margin-bottom: 1rem; text-align: center;">
+                    Raum-Code: <strong id="waitingRoomCodeSpan" style="font-size: 1.6rem; letter-spacing: 4px;">----</strong>
                 </div>
-                <div class="setup-actions">
-                    <button id="startGameBtn" class="primary-btn"><i class="fas fa-play"></i> Spiel starten</button>
-                    <button id="backToModeBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Modus ändern</button>
+                <div id="onlinePlayerList" class="player-list-container">
+                    <ul id="onlinePlayerListUl" class="player-list"></ul>
                 </div>
+                <div class="tv-mode-toggle">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="tvModeCheckbox">
+                        <span class="slider"></span>
+                    </label>
+                    <span><i class="fas fa-tv"></i> Dieses Gerät als Fernseher (Trailer & Ton)</span>
+                </div>
+                <div id="hostTargetSettings" style="margin: 1rem 0; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 20px; display: none;">
+                    <p><strong>🎯 Spielziel festlegen (nur Host)</strong></p>
+                    <div class="target-type-selection" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 0.5rem;">
+                        <label class="target-option"><input type="radio" name="waitingTargetType" value="points" checked> <span>🏆 Punkteziel</span></label>
+                        <label class="target-option"><input type="radio" name="waitingTargetType" value="guesses"> <span>✅ Richtig erratene Filme</span></label>
+                    </div>
+                    <div id="waitingPointsTargetGroup">
+                        <label>Punkteziel: <input type="number" id="waitingTargetScore" value="30" min="5" max="200" step="5"></label>
+                    </div>
+                    <div id="waitingGuessesTargetGroup" style="display: none;">
+                        <label>Richtig erratene Filme: <input type="number" id="waitingGuessTarget" value="5" min="1" max="20" step="1"></label>
+                    </div>
+                    <button id="applyTargetSettingsBtn" class="secondary-btn" style="margin-top: 0.5rem;">Ziel übernehmen</button>
+                </div>
+                <p id="waitingMessage" class="text-muted">Warte auf den Spielleiter...</p>
+                <button id="startGameFromWaitingBtn" class="primary-btn" style="margin-top: 0.5rem;" disabled><i class="fas fa-play"></i> Spiel starten</button>
+                <button id="leaveRoomBtn" class="danger-btn" style="margin-top: 0.5rem;"><i class="fas fa-sign-out-alt"></i> Raum verlassen</button>
             </div>
         </div>
 
-        <!-- Zuschauer-Ansicht (wenn nicht am Zug im Multiplayer) -->
-        <div id="spectatorView" class="hidden glass-card">
-            <h2><i class="fas fa-eye"></i> Aktueller Film</h2>
-            <div id="spectatorContent">
-                <p><strong>Titel:</strong> <span id="spectatorFilmTitle">—</span></p>
-                <p><strong>Jahr:</strong> <span id="spectatorYear">—</span></p>
-                <p><strong>Regisseur:</strong> <span id="spectatorDirector">—</span></p>
-                <div id="spectatorFunFacts"></div>
-            </div>
-            <div id="spectatorNoFilm" class="hidden">
-                <p>🙈 Noch kein Film gescannt. Warte auf den aktiven Spieler.</p>
-            </div>
-            <div id="scoreboardWaiting" class="scoreboard-mini" style="margin-top: 1rem;"></div>
-            <button id="cancelWaitBtnSpectator" class="secondary-btn" style="margin-top: 1rem;">Verlassen</button>
-        </div>
-
-        <!-- Warte auf eigenen Zug (Multiplayer) -->
-        <div id="waitTurnView" class="hidden glass-card">
-            <h2>⏳ Warte auf deinen Zug</h2>
-            <p>Der aktive Spieler rät jetzt. Du siehst hier den Film, sobald er gescannt wurde.</p>
-            <div id="waitingFilmContainer" style="margin-top: 1rem;">
-                <p><strong>Film:</strong> <span id="waitingFilmTitleSpan">—</span></p>
-                <video id="waitingTrailerVideo" controls style="width:100%; max-width:400px; margin-top:0.5rem;"></video>
-                <div id="waitingTipDisplay" class="tip-display" style="margin-top:0.5rem;"></div>
-            </div>
-            <div id="scoreboardWaitingTurn" class="scoreboard-mini" style="margin-top: 1rem;"></div>
-            <button id="cancelWaitBtnTurn" class="secondary-btn" style="margin-top: 1rem;">Verlassen</button>
-        </div>
-
-        <!-- SCANNER-ANSICHT (nur für aktiven Spieler) -->
-        <div id="scannerSection" class="scanner-section hidden">
+        <!-- ONLINE: AKTIVER SPIELER (SCANNER) -->
+        <div id="activePlayerSection" class="scanner-section hidden">
             <div class="scanner-card">
                 <div class="scanner-icon"><i class="fas fa-qrcode"></i></div>
-                <h2>Filmkarte scannen</h2>
+                <h2>Du bist dran!</h2>
                 <div class="current-player-badge">
-                    <i class="fas fa-user"></i> <span id="scannerPlayerName">—</span> · 
-                    <i class="fas fa-chart-simple"></i> <span id="scannerPlayerScore">0</span> Punkte
+                    <i class="fas fa-user"></i> <span id="activePlayerName">—</span> · 
+                    <i class="fas fa-chart-simple"></i> <span id="activePlayerScore">0</span> Punkte
                 </div>
                 <p>Halte den QR-Code vor die Kamera</p>
                 <div class="scanner-viewport">
-                    <div id="scannerVideoContainer" style="width:100%; height:100%; background:#000000;"></div>
+                    <div id="scannerVideoContainer" style="width:100%; height:100%; background:#000;"></div>
                 </div>
                 <div class="camera-tools">
                     <button id="toggleCameraBtn" class="icon-btn" title="Kamera wechseln"><i class="fas fa-camera-rotate"></i></button>
@@ -151,57 +119,131 @@
                     <button id="retryCameraBtn" class="icon-btn" title="Kamera neu starten"><i class="fas fa-sync-alt"></i></button>
                 </div>
                 <div id="scanFeedback" class="scan-feedback"></div>
-                <div id="scoreboard" class="scoreboard-mini" style="margin-top: 1rem;"></div>
-                <button id="endGameBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-flag-checkered"></i> Spiel beenden & Sieger</button>
-                <button id="backToSetupFromScannerBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-arrow-left"></i> Zurück zur Übersicht</button>
+                <button id="endGameOnlineBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-flag-checkered"></i> Spiel beenden (Spielleiter)</button>
+                <button id="leaveActiveRoomBtn" class="secondary-btn" style="margin-top: 0.5rem;"><i class="fas fa-sign-out-alt"></i> Raum verlassen</button>
             </div>
         </div>
 
-        <!-- FILM-ANSICHT für den aktiven Spieler (kein Titel/Jahr/Regisseur) -->
-        <div id="filmSection" class="film-section hidden">
+        <!-- ONLINE: ZUSCHAUER-ANSICHT -->
+        <div id="spectatorSection" class="film-section hidden">
+            <div class="film-card glass-card">
+                <div class="spectator-header">
+                    <h2><i class="fas fa-eye"></i> Zuschauer-Modus</h2>
+                    <div class="current-player-badge">
+                        Aktiver Spieler: <strong id="spectatorCurrentPlayer">—</strong>
+                    </div>
+                </div>
+                <div id="spectatorContent" class="spectator-content">
+                    <p class="text-muted">Warte, bis der aktive Spieler einen Film scannt ...</p>
+                </div>
+                <div id="spectatorTrailerArea" style="display: none; margin-top: 1rem;">
+                    <div class="video-wrapper" style="aspect-ratio: 16/9;">
+                        <video id="spectatorTrailerVideo" class="trailer-player" controls playsinline preload="metadata"></video>
+                    </div>
+                    <div class="tips-section" style="margin-top: 1rem;">
+                        <div class="tips-header"><i class="fas fa-lightbulb"></i> Fun Facts</div>
+                        <div id="spectatorFunFactDisplay" class="tip-display"></div>
+                    </div>
+                </div>
+                <div id="spectatorScoreboard" class="scoreboard-mini" style="margin-top: 1rem;">
+                    <h4>📊 Punktestand</h4>
+                    <ul id="spectatorScoreList"></ul>
+                </div>
+                <div id="tvStatusIndicator" style="margin-top: 0.5rem; font-size: 0.8rem; text-align: center; color: var(--text-muted);"></div>
+                <button id="leaveSpectatorRoomBtn" class="secondary-btn" style="margin-top: 1rem;"><i class="fas fa-sign-out-alt"></i> Raum verlassen</button>
+            </div>
+        </div>
+
+        <!-- LOKALER MODUS -->
+        <div id="localPlayerSetupSection" class="setup-section hidden">
+            <div class="glass-card">
+                <h2><i class="fas fa-users"></i> Spieler / Teams (lokal)</h2>
+                <div class="local-mode-select" style="margin-bottom: 1rem; text-align: center;">
+                    <label class="mode-option"><input type="radio" name="localGameMode" value="simple" checked> <span>🎬 Einfacher Scan (ohne Punkte)</span></label>
+                    <label class="mode-option"><input type="radio" name="localGameMode" value="tournament"> <span>🏆 Mehrspieler (mit Punkten)</span></label>
+                </div>
+                
+                <!-- Zielauswahl (nur im Mehrspieler-Modus sichtbar) -->
+                <div id="localTargetSettings" style="margin: 1rem 0; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 20px; display: none;">
+                    <p><strong>🎯 Spielziel festlegen</strong></p>
+                    <div class="target-type-selection" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 0.5rem;">
+                        <label class="target-option"><input type="radio" name="localTargetType" value="points" checked> <span>🏆 Punkteziel</span></label>
+                        <label class="target-option"><input type="radio" name="localTargetType" value="guesses"> <span>✅ Richtig erratene Filme</span></label>
+                    </div>
+                    <div id="localPointsTargetGroup">
+                        <label>Punkteziel: <input type="number" id="localTargetScore" value="30" min="5" max="200" step="5"></label>
+                    </div>
+                    <div id="localGuessesTargetGroup" style="display: none;">
+                        <label>Richtig erratene Filme: <input type="number" id="localGuessTarget" value="5" min="1" max="20" step="1"></label>
+                    </div>
+                </div>
+                
+                <ul id="localPlayerList" class="player-list"></ul>
+                <div class="add-player">
+                    <input type="text" id="localNewPlayerName" placeholder="Name" maxlength="30">
+                    <button id="localAddPlayerBtn" class="primary-btn">+ Hinzufügen</button>
+                </div>
+                <div class="setup-actions">
+                    <button id="localStartGameBtn" class="primary-btn"><i class="fas fa-play"></i> Spiel starten</button>
+                    <button id="backToModeFromLocalBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Modus ändern</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="localScannerSection" class="scanner-section hidden">
+            <div class="scanner-card">
+                <div class="scanner-icon"><i class="fas fa-qrcode"></i></div>
+                <h2>Filmkarte scannen (lokal)</h2>
+                <div class="current-player-badge">
+                    <i class="fas fa-user"></i> <span id="localScannerPlayerName">—</span> · 
+                    <i class="fas fa-chart-simple"></i> <span id="localScannerPlayerScore">0</span> Punkte
+                </div>
+                <div class="scanner-viewport"><div id="localScannerVideoContainer" style="width:100%; height:100%; background:#000;"></div></div>
+                <div class="camera-tools">
+                    <button id="localToggleCameraBtn" class="icon-btn"><i class="fas fa-camera-rotate"></i></button>
+                    <button id="localToggleFlashBtn" class="icon-btn"><i class="fas fa-bolt"></i></button>
+                    <button id="localRetryCameraBtn" class="icon-btn"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div id="localScanFeedback" class="scan-feedback"></div>
+                <div id="localScoreboard" class="scoreboard-mini" style="display:none;"></div>
+                <button id="localEndGameBtn" class="secondary-btn"><i class="fas fa-flag-checkered"></i> Spiel beenden</button>
+                <button id="backToLocalSetupBtn" class="secondary-btn">Zurück</button>
+            </div>
+        </div>
+
+        <div id="localFilmSection" class="film-section hidden">
             <div class="film-card glass-card">
                 <div class="film-header">
-                    <div>
-                        <h2 id="filmTitle">🎬 Film gescannt (geheim)</h2>
-                        <div class="film-meta"><span id="filmYear"></span><span id="filmDirector"></span></div>
+                    <div><h2 id="localFilmTitle">🎬 Film gescannt (geheim)</h2>
+                    <div class="film-meta"><span id="localFilmYear"></span><span id="localFilmDirector"></span></div></div>
+                    <div class="film-player-info" id="localFilmPlayerInfo">
+                        <span class="player-badge"><i class="fas fa-user"></i> <span id="localFilmCurrentPlayer">—</span></span>
+                        <span class="score-badge"><i class="fas fa-chart-simple"></i> <span id="localFilmCurrentScore">0</span> Pkt.</span>
                     </div>
-                    <div class="film-player-info" id="filmPlayerInfo">
-                        <span class="player-badge"><i class="fas fa-user"></i> <span id="filmCurrentPlayer">—</span></span>
-                        <span class="score-badge"><i class="fas fa-chart-simple"></i> <span id="filmCurrentScore">0</span> Pkt.</span>
-                    </div>
-                    <button id="askGuessBtn" class="primary-btn" style="background: var(--warning);"><i class="fas fa-question-circle"></i> Film erraten?</button>
-                    <button id="nextFilmBtn" class="primary-btn" style="background: var(--success); display: none;"><i class="fas fa-camera"></i> Neuen Film scannen</button>
+                    <button id="localAskGuessBtn" class="primary-btn"><i class="fas fa-question-circle"></i> Film erraten?</button>
+                    <button id="localNextFilmBtn" class="primary-btn" style="display:none;"><i class="fas fa-camera"></i> Neuen Film scannen</button>
                 </div>
-
                 <div class="trailer-toolbar">
                     <div class="language-switch">
-                        <button data-lang="de" class="lang-btn active"><i class="fas fa-language"></i> Deutsch</button>
-                        <button data-lang="en" class="lang-btn"><i class="fas fa-language"></i> English</button>
+                        <button data-lang="de" class="lang-btn local-lang active">Deutsch</button>
+                        <button data-lang="en" class="lang-btn local-lang">English</button>
                     </div>
                     <div class="trailer-nav">
-                        <button id="prevTrailerBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
-                        <span id="trailerCounter" class="trailer-count">Trailer 0/0</span>
-                        <button id="nextTrailerBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                        <button id="localPrevTrailerBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                        <span id="localTrailerCounter" class="trailer-count">Trailer 0/0</span>
+                        <button id="localNextTrailerBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
-
-                <div class="video-wrapper">
-                    <video id="trailerVideo" class="trailer-player" controls playsinline preload="metadata"></video>
-                </div>
-
+                <div class="video-wrapper"><video id="localTrailerVideo" class="trailer-player" controls playsinline preload="metadata"></video></div>
                 <div class="tips-section">
                     <div class="tips-header"><i class="fas fa-lightbulb"></i><span>Tipps zum Erscheinungsjahr</span></div>
-                    <div class="tip-buttons">
-                        <button id="nextTipBtn" class="tip-btn primary-tip">📢 Tipp anzeigen</button>
-                    </div>
-                    <div id="tipDisplay" class="tip-display">
-                        <i class="fas fa-info-circle"></i> Klicke auf "Tipp anzeigen".
-                    </div>
+                    <div class="tip-buttons"><button id="localNextTipBtn" class="tip-btn primary-tip">📢 Tipp anzeigen</button></div>
+                    <div id="localTipDisplay" class="tip-display"><i class="fas fa-info-circle"></i> Klicke auf "Tipp anzeigen".</div>
                 </div>
             </div>
         </div>
 
-        <!-- MODAL: Film erraten? (Nur Turnier) -->
+        <!-- MODALS -->
         <div id="guessModal" class="modal hidden">
             <div class="modal-content glass-card">
                 <h2><i class="fas fa-question-circle"></i> Film erraten?</h2>
@@ -213,7 +255,6 @@
             </div>
         </div>
 
-        <!-- MODAL: Rundenabschluss (Punktevergabe) - Nur Turnier -->
         <div id="roundSummaryModal" class="modal hidden">
             <div class="modal-content glass-card">
                 <h2><i class="fas fa-chart-line"></i> Runde beendet</h2>
@@ -230,7 +271,6 @@
             </div>
         </div>
 
-        <!-- TIPP-OVERLAY -->
         <div id="tipOverlay" class="tip-overlay hidden">
             <div class="tip-overlay-content">
                 <button id="closeTipOverlay" class="close-tip-btn"><i class="fas fa-times"></i></button>
@@ -248,6 +288,14 @@
     <footer class="app-footer">
         <p>🎬 Karte scannen → Trailer ansehen → Tipps nutzen → Film erraten → Punkte vergeben</p>
     </footer>
+</div>
+
+<!-- TV-Vollbild-Overlay -->
+<div id="tvFullscreenOverlay" class="tv-overlay hidden">
+    <div class="tv-overlay-content">
+        <button id="closeTvOverlay" class="close-tv-btn"><i class="fas fa-times"></i></button>
+        <video id="tvFullscreenVideo" class="tv-fullscreen-video" controls autoplay playsinline muted></video>
+    </div>
 </div>
 
 <script src="app.js"></script>
