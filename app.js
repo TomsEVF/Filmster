@@ -40,6 +40,8 @@ let tipUsage = 0;
 let currentTvTrailerIndex = 1;
 let hasTVInRoom = false;
 let currentTVLanguage = 'de';
+let isSyncingTrailer = false;
+let lastTrailerState = {};
 
 let elements = {};
 
@@ -449,6 +451,14 @@ async function syncTrailerFromDB(data) {
     const trailerIndex = data.tvTrailerIndex || 1;
     const tvModeActive = data.tvModeActive === true;
 
+    const stateKey = `${filmId}_${language}_${trailerIndex}_${tvModeActive}`;
+    // Wenn sich nichts geändert hat, abbrechen (außer für Zuschauer, die ggf. den FunFact neu laden müssen? – lassen wir erstmal so)
+    if (lastTrailerState.lastKey === stateKey) {
+        // Trotzdem den FunFact für Zuschauer prüfen (falls sich der Film nicht geändert hat, aber der FunFact anders sein könnte – ignorieren wir hier)
+        return;
+    }
+    lastTrailerState.lastKey = stateKey;
+
     let film = null;
     if (filmId) film = app.films.find(f => f.Nr === filmId);
 
@@ -483,11 +493,16 @@ async function syncTrailerFromDB(data) {
     }
     
     // Trailer-Counter aktualisieren (immer, auch im TV-Modus)
+        // Trailer-Counter aktualisieren (nur bei tatsächlicher Änderung)
     if (trailerCountSpan) {
+        let newText = '';
         if (availableCount > 0 && currentPos > 0) {
-            trailerCountSpan.innerText = `Trailer ${currentPos}/${availableCount}`;
+            newText = `Trailer ${currentPos}/${availableCount}`;
         } else {
-            trailerCountSpan.innerText = 'Kein Trailer';
+            newText = 'Kein Trailer';
+        }
+        if (trailerCountSpan.innerText !== newText) {
+            trailerCountSpan.innerText = newText;
         }
     }
 
@@ -530,6 +545,8 @@ const debouncedSync = debounce(syncTrailerFromDB, 100);
 // --------------------------------------------------------------
 
 function joinRoomListeners(roomRef) {
+    let isUpdating = false;
+    
     roomRef.child('players').on('value', (snapshot) => {
         const playersObj = snapshot.val() || {};
         players = Object.values(playersObj).sort((a, b) => a.joinedAt - b.joinedAt);
@@ -544,6 +561,7 @@ function joinRoomListeners(roomRef) {
     roomRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
+        window._lastRoomData = data;
         
         // Globale Zustände übernehmen
         if (data.gameState === 'active' && gameMode !== 'tournament') {
@@ -565,10 +583,8 @@ function joinRoomListeners(roomRef) {
     roomRef.child('tvModeActive').on('value', async (snap) => {
         const tvActive = snap.val();
         if (tvActive && !isTVMode) {
-            // Zuschauer: Video ausblenden
             if (elements.spectatorTrailerArea) elements.spectatorTrailerArea.style.display = 'none';
         } else if (!tvActive && !isTVMode && gameMode === 'tournament') {
-            // TV wurde deaktiviert – Zuschauer sollen wieder Video sehen
             const currentData = (await roomRef.once('value')).val();
             const filmId = currentData?.currentFilmId;
             const tvLanguage = currentData?.tvLanguage || 'de';
@@ -581,6 +597,7 @@ function joinRoomListeners(roomRef) {
                     tvModeActive: false
                 });
             }
+            // KEIN weiterer Aufruf mehr!
         }
     });
 }
