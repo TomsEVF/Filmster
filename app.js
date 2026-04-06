@@ -260,7 +260,8 @@ async function createRoom() {
             tvTrailerIndex: 1,
             tvLanguage: 'de',
             tvModeActive: false,
-            hasTV: false
+            hasTV: false,
+            playerOrder: []
         });
         currentRoomId = roomCode;
         currentRoomRef = roomRef;
@@ -547,14 +548,35 @@ const debouncedSync = debounce(syncTrailerFromDB, 100);
 function joinRoomListeners(roomRef) {
     let isUpdating = false;
     
-    roomRef.child('players').on('value', (snapshot) => {
+    roomRef.child('players').on('value', async (snapshot) => {
         const playersObj = snapshot.val() || {};
-        players = Object.values(playersObj).sort((a, b) => a.joinedAt - b.joinedAt);
+        let orderSnap = await roomRef.child('playerOrder').once('value');
+        let order = orderSnap.val() || [];
+        
+        // Falls keine Order existiert, nach joinedAt sortieren
+        if (order.length === 0) {
+            players = Object.values(playersObj).sort((a, b) => a.joinedAt - b.joinedAt);
+            order = players.map(p => p.id);
+            if (isRoomCreator) await roomRef.child('playerOrder').set(order);
+        } else {
+            // Order bereinigen (entferne nicht mehr existierende IDs)
+            order = order.filter(id => playersObj[id]);
+            // Neue Spieler hinzufügen (nach joinedAt sortiert)
+            const existingIds = new Set(order);
+            const newPlayers = Object.values(playersObj)
+                .filter(p => !existingIds.has(p.id))
+                .sort((a, b) => a.joinedAt - b.joinedAt);
+            newPlayers.forEach(p => order.push(p.id));
+            if (isRoomCreator) await roomRef.child('playerOrder').set(order);
+            // Spieler nach Order sortieren
+            players = sortPlayersByOrder(Object.values(playersObj), order);
+        }
+        
         updateOnlinePlayerList(players);
         updateSpectatorScoreboard(players);
         if (gameMode === 'tournament' && currentPlayerIndex !== undefined) {
             updateRoleBasedUI();
-            syncTrailerFromDB({ currentFilmId: null }); // ggf. Video zurücksetzen
+            syncTrailerFromDB({ currentFilmId: null });
         }
     });
 
@@ -562,6 +584,13 @@ function joinRoomListeners(roomRef) {
         const data = snapshot.val();
         if (!data) return;
         window._lastRoomData = data;
+
+        // Spieler nach playerOrder sortieren (falls vorhanden)
+        if (data.players && data.playerOrder) {
+            const order = data.playerOrder;
+            const playersObj = data.players;
+            players = sortPlayersByOrder(Object.values(playersObj), order);
+        }
         
         // Globale Zustände übernehmen
         if (data.gameState === 'active' && gameMode !== 'tournament') {
@@ -602,14 +631,85 @@ function joinRoomListeners(roomRef) {
     });
 }
 
-function updateOnlinePlayerList(playersArray) {
+function updateOnlinePlayerList(playersArray, forceOrder = null) {
+    if (!elements.onlinePlayerListUl) return;
+    if (forceOrder) {
+        renderPlayerList(forceOrder);
+    } else if (isRoomCreator && currentRoomRef) {
+        currentRoomRef.child('playerOrder').once('value').then(snap => {
+            renderPlayerList(snap.val() || []);
+        });
+    } else {
+        renderPlayerList(playersArray.map(p => p.id));
+    }
+}
+
+function renderPlayerList(orderIds) {
     if (!elements.onlinePlayerListUl) return;
     elements.onlinePlayerListUl.innerHTML = '';
-    playersArray.forEach(p => {
+    const orderedPlayers = orderIds.map(id => players.find(p => p.id === id)).filter(p => p);
+    orderedPlayers.forEach((p, idx) => {
         const li = document.createElement('li');
-        li.innerHTML = `<span>${escapeHtml(p.name)} (${p.totalScore || 0} Pkt.)</span>`;
+        li.innerHTML = `
+            <span>${escapeHtml(p.name)} (${p.totalScore || 0} Pkt.)</span>
+            ${isRoomCreator ? `
+                <div class="order-buttons">
+                    <button class="order-up" data-idx="${idx}" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                    <button class="order-down" data-idx="${idx}" ${idx === orderedPlayers.length-1 ? 'disabled' : ''}>▼</button>
+                </div>
+            ` : ''}
+        `;
         elements.onlinePlayerListUl.appendChild(li);
     });
+    if (isRoomCreator) {
+        // Event-Delegation für die Pfeile (einmalig setzen)
+        elements.onlinePlayerListUl.onclick = (e) => {
+            const btn = e.target.closest('.order-up, .order-down');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.idx);
+            if (isNaN(idx)) return;
+            if (btn.classList.contains('order-up')) movePlayerUp(idx);
+            else movePlayerDown(idx);
+        };
+    }
+}
+
+async function movePlayerUp(index) {
+    if (!isRoomCreator) return;
+    const orderSnap = await currentRoomRef.child('playerOrder').once('value');
+    let order = orderSnap.val() || [];
+    if (index <= 0 || index >= order.length) return;
+    // Tauschen
+    [order[index-1], order[index]] = [order[index], order[index-1]];
+    await currentRoomRef.child('playerOrder').set(order);
+    // Sofort UI aktualisieren mit der neuen Order
+    renderPlayerList(order);
+}
+
+async function movePlayerDown(index) {
+    if (!isRoomCreator) return;
+    const orderSnap = await currentRoomRef.child('playerOrder').once('value');
+    let order = orderSnap.val() || [];
+    if (index < 0 || index >= order.length-1) return;
+    [order[index], order[index+1]] = [order[index+1], order[index]];
+    await currentRoomRef.child('playerOrder').set(order);
+    renderPlayerList(order);
+}
+
+function sortPlayersByOrder(playersArray, order) {
+    // order = Array von Spieler-IDs (z.B. ["player_123", "player_456"])
+    const playersById = {};
+    playersArray.forEach(p => { playersById[p.id] = p; });
+    const ordered = [];
+    order.forEach(id => {
+        if (playersById[id]) {
+            ordered.push(playersById[id]);
+            delete playersById[id];
+        }
+    });
+    // Übrige Spieler (nicht in order) nach joinedAt sortieren und anhängen
+    const leftovers = Object.values(playersById).sort((a, b) => a.joinedAt - b.joinedAt);
+    return ordered.concat(leftovers);
 }
 
 function updateSpectatorScoreboard(playersArray) {
@@ -643,16 +743,32 @@ async function startOnlineGame() {
     if (!isRoomCreator) { alert('Nur der Host kann starten.'); return; }
     if (!currentRoomRef) { alert('Kein Raum.'); return; }
     try {
+        // Zielwerte aus UI übernehmen
         const targetTypeElem = document.querySelector('input[name="waitingTargetType"]:checked');
         const targetTypeVal = targetTypeElem ? targetTypeElem.value : 'points';
         const targetScoreVal = parseInt(elements.waitingTargetScore?.value) || 30;
         const guessTargetVal = parseInt(elements.waitingGuessTarget?.value) || 5;
+        
+        // Aktuelle Spielerliste und Reihenfolge laden
+        const playersSnap = await currentRoomRef.child('players').once('value');
+        const playersObj = playersSnap.val() || {};
+        const orderSnap = await currentRoomRef.child('playerOrder').once('value');
+        let order = orderSnap.val() || [];
+        // Falls keine Reihenfolge definiert, nach joinedAt sortieren
+        if (order.length === 0) {
+            order = Object.values(playersObj).sort((a,b) => a.joinedAt - b.joinedAt).map(p => p.id);
+        }
+        
+        // Zufälligen Startindex wählen
+        const randomIndex = Math.floor(Math.random() * order.length);
+        
         await currentRoomRef.update({
             gameState: 'active',
-            currentPlayerIndex: 0,
+            currentPlayerIndex: randomIndex,   // Index in der sortierten Reihenfolge
             targetType: targetTypeVal,
             targetScore: targetScoreVal,
-            guessTarget: guessTargetVal
+            guessTarget: guessTargetVal,
+            playerOrder: order                 // Reihenfolge speichern
         });
     } catch (err) {
         console.error(err);
